@@ -8,7 +8,7 @@
 [Bugs](https://github.com/microsoft/PowerToys/issues?q=is%3Aopen%20label%3AIssue-Bug%20label%3A%22Product-Mouse%20Utilities%22)<br>
 [Pull Requests](https://github.com/microsoft/PowerToys/pulls?q=is%3Apr+is%3Aopen+label%3A%22Product-Mouse+Utilities%22)
 
-Mouse Utilities is a collection of tools designed to enhance mouse and cursor functionality on Windows. The module contains four sub-utilities that provide different mouse-related features.
+Mouse Utilities is a collection of tools designed to enhance mouse and cursor functionality on Windows. The module contains four shipping sub-utilities that provide different mouse-related features, plus one in development.
 
 ## Overview
 
@@ -18,6 +18,7 @@ Mouse Utilities includes the following sub-modules:
 - **[Mouse Highlighter](mousehighlighter.md)**: Visualizes mouse clicks with customizable highlights
 - **[Mouse Jump](mousejump.md)**: Allows quick cursor movement to specific screen locations
 - **[Mouse Pointer Crosshairs](mousepointer.md)**: Displays crosshair lines that follow the mouse cursor
+- **[Dwell Click](dwellclick.md)** (in development): Clicks automatically when the pointer is held still, for users who can move a pointer but cannot reliably click it. Only the engine and its unit tests exist so far
 
 ## Architecture
 
@@ -39,6 +40,7 @@ Most of the sub-modules (Find My Mouse, Mouse Highlighter, and Mouse Pointer Cro
 - [MouseJump](/src/modules/MouseUtils/MouseJump)
 - [MouseJumpUI](/src/modules/MouseUtils/MouseJumpUI)
 - [MouseJump.Common](/src/modules/MouseUtils/MouseJump.Common)
+- [DwellClick](/src/modules/MouseUtils/DwellClick) (engine only, no module DLL yet)
 
 ## Community Contributors
 

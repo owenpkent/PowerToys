@@ -483,6 +483,7 @@ DWMWINDOWATTRIBUTE
 DWMWINDOWMAXIMIZEDCHANGE
 DWORDLONG
 dworigin
+Dynavox
 dxgi
 Dxva
 eab
@@ -646,6 +647,7 @@ gfx
 GHND
 gitmodules
 GMEM
+gnome
 googleai
 googlegemini
 Gotchas
@@ -1932,6 +1934,7 @@ tlc
 tmain
 TNP
 Toggleable
+Tobii
 tontrager
 Toolhelp
 toolsets
