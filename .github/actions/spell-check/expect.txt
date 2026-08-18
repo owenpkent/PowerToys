@@ -465,6 +465,7 @@ DVASPECTINFO
 DVD
 dvr
 DVTARGETDEVICE
+dwellclick
 dwflags
 dwl
 dwm
@@ -1070,6 +1071,7 @@ mfc
 mfcm
 Mgmt
 Microwaved
+midas
 middleclickaction
 midl
 midtones
