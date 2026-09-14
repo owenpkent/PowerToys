@@ -215,6 +215,13 @@
                             <tkcontrols:SettingsCard ContentAlignment="Left">
                                 <CheckBox x:Uid="MouseUtils_DwellClick_ShowCountdown" AutomationProperties.AutomationId="MouseUtils_DwellClickShowCountdownId" IsChecked="{x:Bind ViewModel.DwellClickShowCountdown, Mode=TwoWay}" />
                             </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard Name="MouseUtilsDwellClickOverlaySize" x:Uid="MouseUtils_DwellClick_OverlaySize">
+                                <ComboBox MinWidth="{StaticResource SettingActionControlMinWidth}" AutomationProperties.AutomationId="MouseUtils_DwellClickOverlaySizeId" SelectedIndex="{x:Bind Path=ViewModel.DwellClickOverlaySize, Mode=TwoWay}">
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_OverlaySize_Small" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_OverlaySize_Medium" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_OverlaySize_Large" />
+                                </ComboBox>
+                            </tkcontrols:SettingsCard>
                             <tkcontrols:SettingsCard x:Uid="MouseUtils_DwellClick_ToolbarButtons" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}" />
                             <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
                                 <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_LeftClick" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonLeftClickId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonLeftClick, Mode=TwoWay}" />

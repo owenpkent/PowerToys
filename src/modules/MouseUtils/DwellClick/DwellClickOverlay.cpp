@@ -37,10 +37,17 @@ namespace
     const Gdiplus::Color RING_HALO{ 90, 0, 0, 0 };
     const Gdiplus::Color RING_TRACK{ 140, 255, 255, 255 };
 
-    // The indicator bitmap is square; the ring floats centered inside it with room for the
-    // halo stroke.
-    constexpr int INDICATOR_SIZE = 48;
-    constexpr double INDICATOR_RADIUS = 15.0;
+    // The overlay-size setting (small / medium / large) maps to these 96-dpi metrics for the
+    // toolbar buttons and the countdown ring. The indicator bitmap is square; the ring floats
+    // centered inside it with room for the halo stroke.
+    constexpr int BUTTON_SIZES[3] = { 40, 56, 72 };
+    constexpr int INDICATOR_SIZES[3] = { 40, 48, 62 };
+    constexpr double INDICATOR_RADII[3] = { 11.5, 15.0, 19.5 };
+
+    constexpr int ClampSizeIndex(int index)
+    {
+        return index < 0 ? 0 : (index > 2 ? 2 : index);
+    }
 
     // A 32bpp premultiplied-alpha DIB the GDI+ drawing lands in, committed to the window
     // with UpdateLayeredWindow. Small surfaces repainted at most at the 15 ms poll cadence,
@@ -249,6 +256,7 @@ namespace dwellclick
         // The first call always rebuilds: the model's constructor default and the settings
         // defaults are maintained separately, and only the settings are authoritative.
         const bool buttonsChanged = !m_buttonsInitialized || !settings.SameButtons(m_settings);
+        const bool sizeChanged = !m_buttonsInitialized || ClampSizeIndex(settings.overlaySize) != ClampSizeIndex(m_settings.overlaySize);
         const bool countdownChanged = settings.showCountdown != m_settings.showCountdown;
         m_settings = settings;
         m_buttonsInitialized = true;
@@ -256,6 +264,14 @@ namespace dwellclick
         if (!m_toolbar)
         {
             return;
+        }
+        if (sizeChanged)
+        {
+            m_model.SetButtonSize(BUTTON_SIZES[ClampSizeIndex(m_settings.overlaySize)]);
+            if (!buttonsChanged)
+            {
+                LayoutToolbar();
+            }
         }
         if (buttonsChanged)
         {
@@ -488,10 +504,11 @@ namespace dwellclick
                 g.EndContainer(container);
             }
 
+            // Glyph metrics ride the button size so every overlay size keeps the same look.
             const Gdiplus::Color glyphColor = isActive ? GLYPH_ON_ACCENT : GLYPH;
-            const Gdiplus::REAL inset = s(11);
+            const Gdiplus::REAL inset = button.Width * 0.275f;
             Gdiplus::RectF glyph{ button.X + inset, button.Y + inset, button.Width - inset * 2, button.Height - inset * 2 };
-            Gdiplus::Pen pen(glyphColor, s(2.2));
+            Gdiplus::Pen pen(glyphColor, button.Width * 0.055f);
             pen.SetStartCap(Gdiplus::LineCapRound);
             pen.SetEndCap(Gdiplus::LineCapRound);
             Gdiplus::SolidBrush brush(glyphColor);
@@ -538,8 +555,8 @@ namespace dwellclick
             case ToolbarCommand::SelectDoubleClick:
             {
                 DrawMouseGlyph(g, glyph, glyphColor, 0);
-                Gdiplus::Font font(L"Segoe UI", s(8), Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
-                Gdiplus::PointF at{ button.X + button.Width - s(14), button.Y + button.Height - s(15) };
+                Gdiplus::Font font(L"Segoe UI", button.Width * 0.2f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+                Gdiplus::PointF at{ button.X + button.Width * 0.62f, button.Y + button.Height * 0.58f };
                 g.DrawString(L"2", 1, &font, at, &brush);
                 break;
             }
@@ -572,7 +589,7 @@ namespace dwellclick
                 // A gear: toothed ring around a hub.
                 const Gdiplus::REAL outer = glyph.Width * 0.34f;
                 const Gdiplus::REAL tooth = glyph.Width * 0.5f;
-                Gdiplus::Pen toothPen(glyphColor, s(3.0));
+                Gdiplus::Pen toothPen(glyphColor, glyph.Width * 0.16f);
                 for (int t = 0; t < 8; ++t)
                 {
                     const double angle = t * 3.14159265 / 4.0;
@@ -640,7 +657,8 @@ namespace dwellclick
     void Overlay::PaintIndicator(POINT pt, double progress)
     {
         const double scale = Scale();
-        const int size = static_cast<int>(INDICATOR_SIZE * scale);
+        const int sizeIndex = ClampSizeIndex(m_settings.overlaySize);
+        const int size = static_cast<int>(INDICATOR_SIZES[sizeIndex] * scale);
 
         LayeredSurface surface;
         if (!surface.Init(size, size))
@@ -653,16 +671,17 @@ namespace dwellclick
         g.Clear(Gdiplus::Color(0, 0, 0, 0));
 
         const Gdiplus::REAL center = size / 2.0f;
-        const Gdiplus::REAL radius = static_cast<Gdiplus::REAL>(INDICATOR_RADIUS * scale);
+        const Gdiplus::REAL radius = static_cast<Gdiplus::REAL>(INDICATOR_RADII[sizeIndex] * scale);
         const Gdiplus::RectF ring{ center - radius, center - radius, radius * 2, radius * 2 };
 
-        // A dark halo keeps the ring readable over light content, the white track over dark.
-        Gdiplus::Pen halo(RING_HALO, static_cast<Gdiplus::REAL>(6.0 * scale));
+        // A dark halo keeps the ring readable over light content, the white track over dark;
+        // stroke widths ride the radius so every overlay size keeps the same weight.
+        Gdiplus::Pen halo(RING_HALO, radius * 0.42f);
         g.DrawEllipse(&halo, ring);
-        Gdiplus::Pen track(RING_TRACK, static_cast<Gdiplus::REAL>(3.5 * scale));
+        Gdiplus::Pen track(RING_TRACK, radius * 0.24f);
         g.DrawEllipse(&track, ring);
 
-        Gdiplus::Pen arc(ACCENT, static_cast<Gdiplus::REAL>(3.5 * scale));
+        Gdiplus::Pen arc(ACCENT, radius * 0.24f);
         arc.SetStartCap(Gdiplus::LineCapRound);
         arc.SetEndCap(Gdiplus::LineCapRound);
         const Gdiplus::REAL sweep = static_cast<Gdiplus::REAL>(360.0 * (progress > 1.0 ? 1.0 : progress));

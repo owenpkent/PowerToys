@@ -2907,6 +2907,21 @@ From there, simply click on one of the supported files in the File Explorer and 
     <value>Show the countdown ring at the pointer</value>
     <comment>The ring fills up while the pointer rests, showing when the click will land.</comment>
   </data>
+  <data name="MouseUtils_DwellClick_OverlaySize.Header" xml:space="preserve">
+    <value>Overlay size</value>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize.Description" xml:space="preserve">
+    <value>How large the toolbar buttons and the countdown ring are. Bigger targets are easier to rest on.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize_Small.Content" xml:space="preserve">
+    <value>Small</value>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize_Medium.Content" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize_Large.Content" xml:space="preserve">
+    <value>Large</value>
+  </data>
   <data name="MouseUtils_DwellClick_ToolbarButtons.Header" xml:space="preserve">
     <value>Toolbar buttons</value>
   </data>

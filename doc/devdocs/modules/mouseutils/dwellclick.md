@@ -180,8 +180,10 @@ The module lives on the Mouse Utilities settings page (`MouseUtilsPage.xaml`) wi
 dwell-time slider (200 ms to 5 s; the module clamps hand-edited values to 100 ms - 60 s), a
 default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox,
 number boxes for the two tolerances (0 - 100 px), and the overlay options: action toolbar on/off,
-toolbar side (left/right edge), countdown ring on/off, and eight checkboxes choosing which
-buttons the toolbar carries. `DwellClickProperties` must keep its
+toolbar side (left/right edge), countdown ring on/off, overlay size (small 40 px / medium 56 px /
+large 72 px buttons, with the ring scaled to match; medium is the default because dwell targets
+obey Fitts's law and this audience needs room to land on them), and eight checkboxes choosing
+which buttons the toolbar carries. `DwellClickProperties` must keep its
 defaults in sync with the engine and dllmain.cpp. DSC v3 can configure every property
 (`doc/dsc/modules/DwellClick.md`), and the module appears in OOBE's Mouse Utilities page.
 

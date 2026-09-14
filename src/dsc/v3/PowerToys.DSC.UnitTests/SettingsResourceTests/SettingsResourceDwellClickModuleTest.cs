@@ -29,6 +29,7 @@ public sealed class SettingsResourceDwellClickModuleTest : SettingsResourceModul
             s.Properties.ShowToolbar.Value = !s.Properties.ShowToolbar.Value;
             s.Properties.ToolbarSide.Value = 1;
             s.Properties.ShowCountdown.Value = !s.Properties.ShowCountdown.Value;
+            s.Properties.OverlaySize.Value = 2;
             s.Properties.ToolbarButtonMiddleClick.Value = !s.Properties.ToolbarButtonMiddleClick.Value;
             s.Properties.ToolbarButtonScrollDown.Value = !s.Properties.ToolbarButtonScrollDown.Value;
         };

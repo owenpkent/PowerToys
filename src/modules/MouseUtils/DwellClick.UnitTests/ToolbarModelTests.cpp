@@ -36,7 +36,7 @@ namespace DwellClickToolbarTests
 
             model.SetCollapsed(true);
             Assert::AreEqual(1, model.VisibleButtonCount());
-            Assert::AreEqual(ToolbarModel::Padding * 2 + ToolbarModel::ButtonSize, model.Height());
+            Assert::AreEqual(ToolbarModel::Padding * 2 + model.ButtonSize(), model.Height());
         }
 
         TEST_METHOD (GapsAndPaddingHitNothing)
@@ -112,6 +112,24 @@ namespace DwellClickToolbarTests
             model.OnPointer(CenterOf(model, ToolbarCommand::SelectLeftClick), true, 0, DWELL_MS);
             model.SetButtons({ ToolbarCommand::ToggleCollapse, ToolbarCommand::TogglePause });
             Assert::AreEqual(-1, model.HoveredIndex());
+        }
+
+        TEST_METHOD (ButtonSizeScalesTheLayoutAndClampsAndResetsHover)
+        {
+            ToolbarModel model;
+            const int mediumHeight = model.Height();
+
+            model.OnPointer(CenterOf(model, ToolbarCommand::SelectLeftClick), true, 0, DWELL_MS);
+            model.SetButtonSize(72);
+            Assert::AreEqual(-1, model.HoveredIndex());
+            Assert::IsTrue(model.Height() > mediumHeight);
+            Assert::AreEqual(ToolbarModel::Padding * 2 + 72, model.Width());
+
+            // Out-of-range sizes clamp rather than producing an unusable layout.
+            model.SetButtonSize(-100);
+            Assert::AreEqual(24, model.ButtonSize());
+            model.SetButtonSize(100000);
+            Assert::AreEqual(96, model.ButtonSize());
         }
     };
 

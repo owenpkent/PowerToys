@@ -32,6 +32,9 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         [JsonPropertyName("show_countdown")]
         public BoolProperty ShowCountdown { get; set; }
 
+        [JsonPropertyName("overlay_size")]
+        public IntProperty OverlaySize { get; set; }
+
         [JsonPropertyName("toolbar_button_left_click")]
         public BoolProperty ToolbarButtonLeftClick { get; set; }
 
@@ -68,6 +71,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             ShowToolbar = new BoolProperty(true);
             ToolbarSide = new IntProperty(0); // 0 = left edge, 1 = right edge
             ShowCountdown = new BoolProperty(true);
+            OverlaySize = new IntProperty(1); // 0 = small, 1 = medium, 2 = large
 
             // The toolbar's collapse handle and pause button are always present; these choose
             // the rest. Middle click is off by default as the least-used action.

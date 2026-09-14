@@ -27,6 +27,7 @@ public class DwellClickSettingsTests : UITestBase
     private const string ShowCountdownId = "MouseUtils_DwellClickShowCountdownId";
     private const string ToolbarButtonMiddleClickId = "MouseUtils_DwellClickToolbarButtonMiddleClickId";
     private const string ToolbarButtonScrollDownId = "MouseUtils_DwellClickToolbarButtonScrollDownId";
+    private const string OverlaySizeId = "MouseUtils_DwellClickOverlaySizeId";
 
     // The behavioral tests observe the Drag action: its first dwell presses and HOLDS the left
     // button (readable in GetAsyncKeyState, like the Mouse Button Lock tests), and its second
@@ -159,6 +160,8 @@ public class DwellClickSettingsTests : UITestBase
         // because hiding it disables those controls (mirroring the IsEnabled bindings).
         Session.Find<ComboBox>(By.AccessibilityId(ToolbarSideId), 5_000).Select("Right edge");
         AssertPersistedInt("toolbar_side", 1);
+        Session.Find<ComboBox>(By.AccessibilityId(OverlaySizeId), 5_000).Select("Large");
+        AssertPersistedInt("overlay_size", 2);
         SetCheckBox(ToolbarButtonMiddleClickId, check: true);
         AssertPersistedBool("toolbar_button_middle_click", true);
         SetCheckBox(ToolbarButtonScrollDownId, check: false);
@@ -176,6 +179,7 @@ public class DwellClickSettingsTests : UITestBase
         AssertPersistedInt("default_action", 1);
         AssertPersistedBool("revert_to_default_after_action", false);
         AssertPersistedInt("toolbar_side", 1);
+        AssertPersistedInt("overlay_size", 2);
         AssertPersistedBool("toolbar_button_middle_click", true);
         AssertPersistedBool("toolbar_button_scroll_down", false);
         AssertPersistedBool("show_toolbar", false);

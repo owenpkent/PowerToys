@@ -60,10 +60,24 @@ namespace dwellclick
     {
     public:
         // Geometry in unscaled 96-dpi units; the overlay multiplies by the monitor's DPI
-        // scale before creating the window and divides pointer input back down.
-        static constexpr int ButtonSize = 40;
+        // scale before creating the window and divides pointer input back down. The button
+        // size is a setting (the overlay-size choice): dwell targets obey Fitts's law, and
+        // the audience for this module needs them big.
+        static constexpr int DefaultButtonSize = 56;
         static constexpr int Padding = 4;
         static constexpr int Gap = 4;
+
+        int ButtonSize() const
+        {
+            return m_buttonSize;
+        }
+
+        // Every button moves when the size changes, so any running hover is meaningless.
+        void SetButtonSize(int size)
+        {
+            m_buttonSize = size < 24 ? 24 : (size > 96 ? 96 : size);
+            ResetHover();
+        }
 
         // Index 0 is the collapse handle; it is the only button shown while collapsed.
         static constexpr int CollapseIndex = 0;
@@ -140,22 +154,22 @@ namespace dwellclick
 
         int Width() const
         {
-            return Padding + ButtonSize + Padding;
+            return Padding + m_buttonSize + Padding;
         }
 
         int Height() const
         {
             const int n = VisibleButtonCount();
-            return Padding + n * ButtonSize + (n - 1) * Gap + Padding;
+            return Padding + n * m_buttonSize + (n - 1) * Gap + Padding;
         }
 
         ToolbarRect ButtonRect(int index) const
         {
             return ToolbarRect{
                 Padding,
-                Padding + index * (ButtonSize + Gap),
-                ButtonSize,
-                ButtonSize,
+                Padding + index * (m_buttonSize + Gap),
+                m_buttonSize,
+                m_buttonSize,
             };
         }
 
@@ -248,6 +262,7 @@ namespace dwellclick
 
     private:
         std::vector<ToolbarCommand> m_buttons;
+        int m_buttonSize = DefaultButtonSize;
         bool m_collapsed = false;
         int m_hoverIndex = -1;
         int m_blockedIndex = -1;

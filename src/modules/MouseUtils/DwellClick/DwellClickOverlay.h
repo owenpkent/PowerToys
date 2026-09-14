@@ -33,6 +33,11 @@ namespace dwellclick
         int toolbarSide = 0; // 0 = left edge, 1 = right edge
         bool showCountdown = true;
 
+        // 0 = small, 1 = medium (default), 2 = large. Scales the toolbar buttons and the
+        // countdown ring together: dwell targets obey Fitts's law, and the audience for
+        // this module needs room to land on them.
+        int overlaySize = 1;
+
         // Which action buttons the toolbar carries. The collapse handle and pause are always
         // present: collapse is the handle itself, and pause is the safety escape every
         // surveyed dwell tool ships.

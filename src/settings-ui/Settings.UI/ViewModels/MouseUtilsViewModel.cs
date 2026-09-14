@@ -160,6 +160,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             DwellClickSettingsConfig.Properties.ShowToolbar ??= new BoolProperty(true);
             DwellClickSettingsConfig.Properties.ToolbarSide ??= new IntProperty(0);
             DwellClickSettingsConfig.Properties.ShowCountdown ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.OverlaySize ??= new IntProperty(1);
             DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick ??= new BoolProperty(true);
             DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick ??= new BoolProperty(true);
             DwellClickSettingsConfig.Properties.ToolbarButtonRightClick ??= new BoolProperty(true);
@@ -177,6 +178,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             _dwellClickShowToolbar = DwellClickSettingsConfig.Properties.ShowToolbar.Value;
             _dwellClickToolbarSide = DwellClickSettingsConfig.Properties.ToolbarSide.Value;
             _dwellClickShowCountdown = DwellClickSettingsConfig.Properties.ShowCountdown.Value;
+            _dwellClickOverlaySize = DwellClickSettingsConfig.Properties.OverlaySize.Value;
             _dwellClickToolbarButtonLeftClick = DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick.Value;
             _dwellClickToolbarButtonDoubleClick = DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick.Value;
             _dwellClickToolbarButtonRightClick = DwellClickSettingsConfig.Properties.ToolbarButtonRightClick.Value;
@@ -1628,6 +1630,20 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             }
         }
 
+        public int DwellClickOverlaySize
+        {
+            get => _dwellClickOverlaySize;
+            set
+            {
+                if (value != _dwellClickOverlaySize)
+                {
+                    _dwellClickOverlaySize = value;
+                    DwellClickSettingsConfig.Properties.OverlaySize.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
         public bool DwellClickToolbarButtonLeftClick
         {
             get => _dwellClickToolbarButtonLeftClick;
@@ -1842,6 +1858,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private bool _dwellClickShowToolbar;
         private int _dwellClickToolbarSide; // 0=Left edge, 1=Right edge
         private bool _dwellClickShowCountdown;
+        private int _dwellClickOverlaySize; // 0=Small, 1=Medium, 2=Large
         private bool _dwellClickToolbarButtonLeftClick;
         private bool _dwellClickToolbarButtonDoubleClick;
         private bool _dwellClickToolbarButtonRightClick;

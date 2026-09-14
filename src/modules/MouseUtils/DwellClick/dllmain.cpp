@@ -66,6 +66,7 @@ namespace
     const wchar_t JSON_KEY_SHOW_TOOLBAR[] = L"show_toolbar";
     const wchar_t JSON_KEY_TOOLBAR_SIDE[] = L"toolbar_side";
     const wchar_t JSON_KEY_SHOW_COUNTDOWN[] = L"show_countdown";
+    const wchar_t JSON_KEY_OVERLAY_SIZE[] = L"overlay_size";
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_LEFT_CLICK[] = L"toolbar_button_left_click";
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_DOUBLE_CLICK[] = L"toolbar_button_double_click";
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_RIGHT_CLICK[] = L"toolbar_button_right_click";
@@ -195,6 +196,7 @@ private:
     std::atomic<bool> m_showToolbar{ true };
     std::atomic<int> m_toolbarSide{ 0 };
     std::atomic<bool> m_showCountdown{ true };
+    std::atomic<int> m_overlaySize{ 1 }; // 0 = small, 1 = medium, 2 = large
     std::atomic<bool> m_toolbarButtonLeftClick{ true };
     std::atomic<bool> m_toolbarButtonDoubleClick{ true };
     std::atomic<bool> m_toolbarButtonRightClick{ true };
@@ -452,6 +454,7 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
     readBool(JSON_KEY_SHOW_TOOLBAR, m_showToolbar);
     readInt(JSON_KEY_TOOLBAR_SIDE, m_toolbarSide, 0, 1);
     readBool(JSON_KEY_SHOW_COUNTDOWN, m_showCountdown);
+    readInt(JSON_KEY_OVERLAY_SIZE, m_overlaySize, 0, 2);
     readBool(JSON_KEY_TOOLBAR_BUTTON_LEFT_CLICK, m_toolbarButtonLeftClick);
     readBool(JSON_KEY_TOOLBAR_BUTTON_DOUBLE_CLICK, m_toolbarButtonDoubleClick);
     readBool(JSON_KEY_TOOLBAR_BUTTON_RIGHT_CLICK, m_toolbarButtonRightClick);
@@ -553,6 +556,7 @@ void DwellClick::HookThreadMain()
             overlaySettings.showToolbar = m_showToolbar.load();
             overlaySettings.toolbarSide = m_toolbarSide.load();
             overlaySettings.showCountdown = m_showCountdown.load();
+            overlaySettings.overlaySize = m_overlaySize.load();
             overlaySettings.buttonLeftClick = m_toolbarButtonLeftClick.load();
             overlaySettings.buttonDoubleClick = m_toolbarButtonDoubleClick.load();
             overlaySettings.buttonRightClick = m_toolbarButtonRightClick.load();

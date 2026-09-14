@@ -96,6 +96,15 @@ dwell is in progress.
 **Type:** boolean  
 **Default:** `true`
 
+### OverlaySize
+
+Sets how large the toolbar buttons and the countdown ring are. Bigger
+targets are easier to rest on.
+
+**Type:** integer  
+**Values:** `0` = small, `1` = medium, `2` = large  
+**Default:** `1`
+
 ### ToolbarButton properties
 
 Eight booleans choose which action buttons the toolbar carries; the
