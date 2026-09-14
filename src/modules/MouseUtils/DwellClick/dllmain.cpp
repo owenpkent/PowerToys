@@ -12,6 +12,7 @@
 #include "DwellClickCore.h"
 
 #include <atomic>
+#include <cmath>
 #include <thread>
 
 // Dwell Click
@@ -380,9 +381,16 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
         }
         try
         {
-            // GetNamedNumber yields a double; clamp into range BEFORE the cast so an out-of-range
-            // or non-finite value can't produce an undefined double-to-int conversion.
+            // GetNamedNumber yields a double. NaN compares false against both bounds, so it would
+            // slip past the range checks below and make static_cast<int> undefined; reject any
+            // non-finite value outright and keep the previous value. Finite out-of-range values are
+            // clamped BEFORE the cast so the conversion is always defined.
             double raw = properties.GetNamedObject(key).GetNamedNumber(JSON_KEY_VALUE);
+            if (!std::isfinite(raw))
+            {
+                Logger::warn(L"Ignoring non-finite int setting; keeping previous value.");
+                return;
+            }
             if (raw < minValue)
             {
                 raw = minValue;
