@@ -596,4 +596,86 @@ namespace DwellClickEngineTests
             Assert::IsTrue(e.NextAction() == DwellAction::RightClick);
         }
     };
+
+    TEST_CLASS (ScrollActions)
+    {
+    public:
+        TEST_METHOD (ScrollAutoRepeatsWhileThePointerKeepsResting)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            e.SetNextAction(DwellAction::ScrollUp);
+            Arm(e, s);
+
+            // One notch per dwell period, with no movement in between: scroll is the one
+            // action family that does not lock after firing.
+            Assert::IsTrue(e.Poll(100, s).fired);
+            Assert::IsTrue(e.Poll(200, s).fired);
+            Assert::IsTrue(e.Poll(300, s).fired);
+            Assert::AreEqual(static_cast<size_t>(3), injector.Count());
+            Assert::IsTrue(injector.calls[0].kind == ClickKind::ScrollUp);
+            Assert::IsTrue(injector.calls[2].kind == ClickKind::ScrollUp);
+        }
+
+        TEST_METHOD (ScrollDoesNotRevertToTheDefaultAction)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            Settings s = DefaultSettings();
+            s.revertToDefaultAfterAction = true; // explicit: even with revert on, scroll sticks
+
+            e.SetNextAction(DwellAction::ScrollDown);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(100, s).fired);
+            Assert::IsTrue(e.NextAction() == DwellAction::ScrollDown);
+        }
+
+        TEST_METHOD (ScrollActionsMapToTheirOwnClickKinds)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            e.SetNextAction(DwellAction::ScrollDown);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(100, s).fired);
+            Assert::IsTrue(injector.calls[0].kind == ClickKind::ScrollDown);
+        }
+
+        TEST_METHOD (MovementReanchorsTheRepeatingScroll)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            e.SetNextAction(DwellAction::ScrollUp);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(100, s).fired);
+
+            // A real move restarts the countdown at the new spot rather than firing early.
+            e.OnMove(PointL{ 300, 300 }, 150, s);
+            Assert::IsFalse(e.Poll(200, s).fired);
+            Assert::IsTrue(e.Poll(250, s).fired);
+        }
+
+        TEST_METHOD (AFailedScrollLocksInsteadOfRetryingEveryPoll)
+        {
+            FakeInjector injector;
+            injector.succeed = false;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            e.SetNextAction(DwellAction::ScrollUp);
+            Arm(e, s);
+            const PollResult r = e.Poll(100, s);
+            Assert::IsFalse(r.fired);
+            Assert::AreEqual(static_cast<size_t>(1), injector.Count());
+
+            // Locked, exactly like a failed click: no retry while the pointer rests there.
+            Assert::IsFalse(e.Poll(10000, s).fired);
+            Assert::AreEqual(static_cast<size_t>(1), injector.Count());
+        }
+    };
 }

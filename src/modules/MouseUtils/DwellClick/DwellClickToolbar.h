@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
 #include "DwellClickCore.h"
 
@@ -37,6 +38,9 @@ namespace dwellclick
         SelectRightClick,
         SelectMiddleClick,
         SelectDrag,
+        SelectScrollUp,
+        SelectScrollDown,
+        OpenSettings,
     };
 
     struct ToolbarRect
@@ -62,30 +66,59 @@ namespace dwellclick
         static constexpr int Gap = 4;
 
         // Index 0 is the collapse handle; it is the only button shown while collapsed.
-        static constexpr int ButtonCount = 7;
         static constexpr int CollapseIndex = 0;
-        static constexpr int PauseIndex = 1;
 
-        static constexpr ToolbarCommand CommandFor(int index)
+        // The button list is configurable (Settings chooses which action buttons appear).
+        // The default construction carries the shipping default set; callers replace it with
+        // SetButtons. The first entry must stay ToggleCollapse: it is the collapsed handle.
+        ToolbarModel()
         {
-            switch (index)
+            m_buttons = {
+                ToolbarCommand::ToggleCollapse,
+                ToolbarCommand::TogglePause,
+                ToolbarCommand::SelectLeftClick,
+                ToolbarCommand::SelectDoubleClick,
+                ToolbarCommand::SelectRightClick,
+                ToolbarCommand::SelectMiddleClick,
+                ToolbarCommand::SelectDrag,
+                ToolbarCommand::SelectScrollUp,
+                ToolbarCommand::SelectScrollDown,
+                ToolbarCommand::OpenSettings,
+            };
+        }
+
+        // Replace the button list. Every button moves, so any running hover is meaningless.
+        void SetButtons(std::vector<ToolbarCommand> buttons)
+        {
+            m_buttons = std::move(buttons);
+            ResetHover();
+        }
+
+        const std::vector<ToolbarCommand>& Buttons() const
+        {
+            return m_buttons;
+        }
+
+        ToolbarCommand CommandFor(int index) const
+        {
+            if (index < 0 || index >= static_cast<int>(m_buttons.size()))
             {
-            case 1:
-                return ToolbarCommand::TogglePause;
-            case 2:
-                return ToolbarCommand::SelectLeftClick;
-            case 3:
-                return ToolbarCommand::SelectDoubleClick;
-            case 4:
-                return ToolbarCommand::SelectRightClick;
-            case 5:
-                return ToolbarCommand::SelectMiddleClick;
-            case 6:
-                return ToolbarCommand::SelectDrag;
-            case 0:
-            default:
                 return ToolbarCommand::ToggleCollapse;
             }
+            return m_buttons[static_cast<size_t>(index)];
+        }
+
+        // The index of a command in the current list, or -1 when it is not shown.
+        int IndexOf(ToolbarCommand command) const
+        {
+            for (size_t i = 0; i < m_buttons.size(); ++i)
+            {
+                if (m_buttons[i] == command)
+                {
+                    return static_cast<int>(i);
+                }
+            }
+            return -1;
         }
 
         bool IsCollapsed() const
@@ -102,7 +135,7 @@ namespace dwellclick
 
         int VisibleButtonCount() const
         {
-            return m_collapsed ? 1 : ButtonCount;
+            return m_collapsed ? 1 : static_cast<int>(m_buttons.size());
         }
 
         int Width() const
@@ -214,6 +247,7 @@ namespace dwellclick
         }
 
     private:
+        std::vector<ToolbarCommand> m_buttons;
         bool m_collapsed = false;
         int m_hoverIndex = -1;
         int m_blockedIndex = -1;

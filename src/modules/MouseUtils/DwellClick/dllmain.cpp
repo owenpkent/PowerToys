@@ -3,9 +3,11 @@
 // See the LICENSE file in the project root for more information.
 
 #include "pch.h"
+#include <shellapi.h>
 #include <interface/powertoy_module_interface.h>
 #include <common/SettingsAPI/settings_objects.h>
 #include <common/utils/logger_helper.h>
+#include <common/utils/process_path.h>
 #include <common/logger/logger.h>
 #include "trace.h"
 #include "resource.h"
@@ -64,6 +66,14 @@ namespace
     const wchar_t JSON_KEY_SHOW_TOOLBAR[] = L"show_toolbar";
     const wchar_t JSON_KEY_TOOLBAR_SIDE[] = L"toolbar_side";
     const wchar_t JSON_KEY_SHOW_COUNTDOWN[] = L"show_countdown";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_LEFT_CLICK[] = L"toolbar_button_left_click";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_DOUBLE_CLICK[] = L"toolbar_button_double_click";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_RIGHT_CLICK[] = L"toolbar_button_right_click";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_MIDDLE_CLICK[] = L"toolbar_button_middle_click";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_DRAG[] = L"toolbar_button_drag";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_SCROLL_UP[] = L"toolbar_button_scroll_up";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_SCROLL_DOWN[] = L"toolbar_button_scroll_down";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_OPEN_SETTINGS[] = L"toolbar_button_open_settings";
 
     // dwExtraInfo tag stamped on every event we inject via SendInput, so the hook ignores our
     // own synthetic clicks: a dwell-fired click must not register as the user clicking
@@ -113,6 +123,12 @@ namespace
 
             switch (kind)
             {
+            case dwellclick::ClickKind::ScrollUp:
+            case dwellclick::ClickKind::ScrollDown:
+                // One wheel notch at the pointer; sign selects the direction.
+                add(MOUSEEVENTF_WHEEL);
+                inputs[0].mi.mouseData = kind == dwellclick::ClickKind::ScrollUp ? WHEEL_DELTA : static_cast<DWORD>(-WHEEL_DELTA);
+                break;
             case dwellclick::ClickKind::RightClick:
                 add(MOUSEEVENTF_RIGHTDOWN);
                 add(MOUSEEVENTF_RIGHTUP);
@@ -179,6 +195,14 @@ private:
     std::atomic<bool> m_showToolbar{ true };
     std::atomic<int> m_toolbarSide{ 0 };
     std::atomic<bool> m_showCountdown{ true };
+    std::atomic<bool> m_toolbarButtonLeftClick{ true };
+    std::atomic<bool> m_toolbarButtonDoubleClick{ true };
+    std::atomic<bool> m_toolbarButtonRightClick{ true };
+    std::atomic<bool> m_toolbarButtonMiddleClick{ false };
+    std::atomic<bool> m_toolbarButtonDrag{ true };
+    std::atomic<bool> m_toolbarButtonScrollUp{ true };
+    std::atomic<bool> m_toolbarButtonScrollDown{ true };
+    std::atomic<bool> m_toolbarButtonOpenSettings{ true };
 
     // The engine is not thread-safe, so set_config (runner thread) never touches it directly.
     // It raises this flag instead, and the hook thread's poll loop consumes it and applies the
@@ -428,6 +452,14 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
     readBool(JSON_KEY_SHOW_TOOLBAR, m_showToolbar);
     readInt(JSON_KEY_TOOLBAR_SIDE, m_toolbarSide, 0, 1);
     readBool(JSON_KEY_SHOW_COUNTDOWN, m_showCountdown);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_LEFT_CLICK, m_toolbarButtonLeftClick);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_DOUBLE_CLICK, m_toolbarButtonDoubleClick);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_RIGHT_CLICK, m_toolbarButtonRightClick);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_MIDDLE_CLICK, m_toolbarButtonMiddleClick);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_DRAG, m_toolbarButtonDrag);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_SCROLL_UP, m_toolbarButtonScrollUp);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_SCROLL_DOWN, m_toolbarButtonScrollDown);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_OPEN_SETTINGS, m_toolbarButtonOpenSettings);
 
     // The action is an enum stored as a number. An unknown value (a future action arriving via
     // a hand-edited or newer settings file) falls back to LeftClick, the least surprising
@@ -517,7 +549,19 @@ void DwellClick::HookThreadMain()
 
         if (overlayCreated)
         {
-            m_overlay.ApplySettings({ m_showToolbar.load(), m_toolbarSide.load(), m_showCountdown.load() });
+            dwellclick::OverlaySettings overlaySettings;
+            overlaySettings.showToolbar = m_showToolbar.load();
+            overlaySettings.toolbarSide = m_toolbarSide.load();
+            overlaySettings.showCountdown = m_showCountdown.load();
+            overlaySettings.buttonLeftClick = m_toolbarButtonLeftClick.load();
+            overlaySettings.buttonDoubleClick = m_toolbarButtonDoubleClick.load();
+            overlaySettings.buttonRightClick = m_toolbarButtonRightClick.load();
+            overlaySettings.buttonMiddleClick = m_toolbarButtonMiddleClick.load();
+            overlaySettings.buttonDrag = m_toolbarButtonDrag.load();
+            overlaySettings.buttonScrollUp = m_toolbarButtonScrollUp.load();
+            overlaySettings.buttonScrollDown = m_toolbarButtonScrollDown.load();
+            overlaySettings.buttonOpenSettings = m_toolbarButtonOpenSettings.load();
+            m_overlay.ApplySettings(overlaySettings);
             m_overlay.TickToolbar(cursor, tick, snapshot.dwellTimeMs);
         }
 
@@ -595,6 +639,22 @@ void DwellClick::HandleToolbarCommand(dwellclick::ToolbarCommand command)
     case ToolbarCommand::SelectDrag:
         select(DwellAction::Drag);
         break;
+    case ToolbarCommand::SelectScrollUp:
+        select(DwellAction::ScrollUp);
+        break;
+    case ToolbarCommand::SelectScrollDown:
+        select(DwellAction::ScrollDown);
+        break;
+    case ToolbarCommand::OpenSettings:
+    {
+        // The deep link every module uses: a second PowerToys.exe instance hands the request
+        // to the running one and exits (see runner/main.cpp). ShellExecute keeps this
+        // non-blocking; a dwell user cannot reach the tray icon, which is why the toolbar
+        // carries this button at all.
+        const std::wstring executable = get_module_folderpath(reinterpret_cast<HMODULE>(&__ImageBase)) + L"\\PowerToys.exe";
+        ShellExecuteW(nullptr, L"open", executable.c_str(), L"--open-settings=MouseUtils", nullptr, SW_SHOWNORMAL);
+        break;
+    }
     case ToolbarCommand::ToggleCollapse:
     default:
         // Collapse is handled inside the overlay; nothing reaches the engine.

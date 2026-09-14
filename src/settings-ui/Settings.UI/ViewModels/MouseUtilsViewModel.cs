@@ -160,6 +160,14 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             DwellClickSettingsConfig.Properties.ShowToolbar ??= new BoolProperty(true);
             DwellClickSettingsConfig.Properties.ToolbarSide ??= new IntProperty(0);
             DwellClickSettingsConfig.Properties.ShowCountdown ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonRightClick ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonMiddleClick ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonDrag ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonScrollUp ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonScrollDown ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonOpenSettings ??= new BoolProperty(true);
 
             _dwellClickDwellTimeMs = DwellClickSettingsConfig.Properties.DwellTimeMs.Value;
             _dwellClickMoveTolerancePixels = DwellClickSettingsConfig.Properties.MoveTolerancePixels.Value;
@@ -169,6 +177,14 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             _dwellClickShowToolbar = DwellClickSettingsConfig.Properties.ShowToolbar.Value;
             _dwellClickToolbarSide = DwellClickSettingsConfig.Properties.ToolbarSide.Value;
             _dwellClickShowCountdown = DwellClickSettingsConfig.Properties.ShowCountdown.Value;
+            _dwellClickToolbarButtonLeftClick = DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick.Value;
+            _dwellClickToolbarButtonDoubleClick = DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick.Value;
+            _dwellClickToolbarButtonRightClick = DwellClickSettingsConfig.Properties.ToolbarButtonRightClick.Value;
+            _dwellClickToolbarButtonMiddleClick = DwellClickSettingsConfig.Properties.ToolbarButtonMiddleClick.Value;
+            _dwellClickToolbarButtonDrag = DwellClickSettingsConfig.Properties.ToolbarButtonDrag.Value;
+            _dwellClickToolbarButtonScrollUp = DwellClickSettingsConfig.Properties.ToolbarButtonScrollUp.Value;
+            _dwellClickToolbarButtonScrollDown = DwellClickSettingsConfig.Properties.ToolbarButtonScrollDown.Value;
+            _dwellClickToolbarButtonOpenSettings = DwellClickSettingsConfig.Properties.ToolbarButtonOpenSettings.Value;
 
             int isEnabled = 0;
 
@@ -1612,6 +1628,118 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             }
         }
 
+        public bool DwellClickToolbarButtonLeftClick
+        {
+            get => _dwellClickToolbarButtonLeftClick;
+            set
+            {
+                if (value != _dwellClickToolbarButtonLeftClick)
+                {
+                    _dwellClickToolbarButtonLeftClick = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonDoubleClick
+        {
+            get => _dwellClickToolbarButtonDoubleClick;
+            set
+            {
+                if (value != _dwellClickToolbarButtonDoubleClick)
+                {
+                    _dwellClickToolbarButtonDoubleClick = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonRightClick
+        {
+            get => _dwellClickToolbarButtonRightClick;
+            set
+            {
+                if (value != _dwellClickToolbarButtonRightClick)
+                {
+                    _dwellClickToolbarButtonRightClick = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonRightClick.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonMiddleClick
+        {
+            get => _dwellClickToolbarButtonMiddleClick;
+            set
+            {
+                if (value != _dwellClickToolbarButtonMiddleClick)
+                {
+                    _dwellClickToolbarButtonMiddleClick = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonMiddleClick.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonDrag
+        {
+            get => _dwellClickToolbarButtonDrag;
+            set
+            {
+                if (value != _dwellClickToolbarButtonDrag)
+                {
+                    _dwellClickToolbarButtonDrag = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonDrag.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonScrollUp
+        {
+            get => _dwellClickToolbarButtonScrollUp;
+            set
+            {
+                if (value != _dwellClickToolbarButtonScrollUp)
+                {
+                    _dwellClickToolbarButtonScrollUp = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonScrollUp.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonScrollDown
+        {
+            get => _dwellClickToolbarButtonScrollDown;
+            set
+            {
+                if (value != _dwellClickToolbarButtonScrollDown)
+                {
+                    _dwellClickToolbarButtonScrollDown = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonScrollDown.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonOpenSettings
+        {
+            get => _dwellClickToolbarButtonOpenSettings;
+            set
+            {
+                if (value != _dwellClickToolbarButtonOpenSettings)
+                {
+                    _dwellClickToolbarButtonOpenSettings = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonOpenSettings.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
         public void NotifyDwellClickPropertyChanged([CallerMemberName] string propertyName = null)
         {
             OnPropertyChanged(propertyName);
@@ -1714,5 +1842,13 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private bool _dwellClickShowToolbar;
         private int _dwellClickToolbarSide; // 0=Left edge, 1=Right edge
         private bool _dwellClickShowCountdown;
+        private bool _dwellClickToolbarButtonLeftClick;
+        private bool _dwellClickToolbarButtonDoubleClick;
+        private bool _dwellClickToolbarButtonRightClick;
+        private bool _dwellClickToolbarButtonMiddleClick;
+        private bool _dwellClickToolbarButtonDrag;
+        private bool _dwellClickToolbarButtonScrollUp;
+        private bool _dwellClickToolbarButtonScrollDown;
+        private bool _dwellClickToolbarButtonOpenSettings;
     }
 }

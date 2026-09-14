@@ -246,12 +246,54 @@ namespace dwellclick
     void Overlay::ApplySettings(const OverlaySettings& settings)
     {
         const bool toolbarChanged = settings.showToolbar != m_settings.showToolbar || settings.toolbarSide != m_settings.toolbarSide;
+        // The first call always rebuilds: the model's constructor default and the settings
+        // defaults are maintained separately, and only the settings are authoritative.
+        const bool buttonsChanged = !m_buttonsInitialized || !settings.SameButtons(m_settings);
         const bool countdownChanged = settings.showCountdown != m_settings.showCountdown;
         m_settings = settings;
+        m_buttonsInitialized = true;
 
         if (!m_toolbar)
         {
             return;
+        }
+        if (buttonsChanged)
+        {
+            std::vector<ToolbarCommand> buttons{ ToolbarCommand::ToggleCollapse, ToolbarCommand::TogglePause };
+            if (m_settings.buttonLeftClick)
+            {
+                buttons.push_back(ToolbarCommand::SelectLeftClick);
+            }
+            if (m_settings.buttonDoubleClick)
+            {
+                buttons.push_back(ToolbarCommand::SelectDoubleClick);
+            }
+            if (m_settings.buttonRightClick)
+            {
+                buttons.push_back(ToolbarCommand::SelectRightClick);
+            }
+            if (m_settings.buttonMiddleClick)
+            {
+                buttons.push_back(ToolbarCommand::SelectMiddleClick);
+            }
+            if (m_settings.buttonDrag)
+            {
+                buttons.push_back(ToolbarCommand::SelectDrag);
+            }
+            if (m_settings.buttonScrollUp)
+            {
+                buttons.push_back(ToolbarCommand::SelectScrollUp);
+            }
+            if (m_settings.buttonScrollDown)
+            {
+                buttons.push_back(ToolbarCommand::SelectScrollDown);
+            }
+            if (m_settings.buttonOpenSettings)
+            {
+                buttons.push_back(ToolbarCommand::OpenSettings);
+            }
+            m_model.SetButtons(std::move(buttons));
+            LayoutToolbar();
         }
         if (toolbarChanged)
         {
@@ -410,13 +452,15 @@ namespace dwellclick
             const ToolbarRect rect = m_model.ButtonRect(i);
             const Gdiplus::RectF button{ s(rect.x), s(rect.y), s(rect.w), s(rect.h) };
 
-            const ToolbarCommand command = ToolbarModel::CommandFor(i);
+            const ToolbarCommand command = m_model.CommandFor(i);
             const bool isCurrentAction =
                 (command == ToolbarCommand::SelectLeftClick && m_state.currentAction == DwellAction::LeftClick) ||
                 (command == ToolbarCommand::SelectDoubleClick && m_state.currentAction == DwellAction::DoubleClick) ||
                 (command == ToolbarCommand::SelectRightClick && m_state.currentAction == DwellAction::RightClick) ||
                 (command == ToolbarCommand::SelectMiddleClick && m_state.currentAction == DwellAction::MiddleClick) ||
-                (command == ToolbarCommand::SelectDrag && m_state.currentAction == DwellAction::Drag);
+                (command == ToolbarCommand::SelectDrag && m_state.currentAction == DwellAction::Drag) ||
+                (command == ToolbarCommand::SelectScrollUp && m_state.currentAction == DwellAction::ScrollUp) ||
+                (command == ToolbarCommand::SelectScrollDown && m_state.currentAction == DwellAction::ScrollDown);
             const bool isActive = isCurrentAction || (command == ToolbarCommand::TogglePause && m_state.paused);
 
             Gdiplus::GraphicsPath buttonPath;
@@ -505,6 +549,43 @@ namespace dwellclick
             case ToolbarCommand::SelectMiddleClick:
                 DrawMouseGlyph(g, glyph, glyphColor, 2);
                 break;
+            case ToolbarCommand::SelectScrollUp:
+            case ToolbarCommand::SelectScrollDown:
+            {
+                // An arrow over (or under) two content lines. ScrollDown is the mirror.
+                const bool up = command == ToolbarCommand::SelectScrollUp;
+                const Gdiplus::REAL head = glyph.Width * 0.24f;
+                const Gdiplus::REAL tipY = up ? glyph.Y : glyph.Y + glyph.Height;
+                const Gdiplus::REAL tailY = up ? glyph.Y + glyph.Height * 0.62f : glyph.Y + glyph.Height * 0.38f;
+                const Gdiplus::REAL headY = up ? tipY + head : tipY - head;
+                g.DrawLine(&pen, cx, tipY, cx, tailY);
+                g.DrawLine(&pen, cx, tipY, cx - head, headY);
+                g.DrawLine(&pen, cx, tipY, cx + head, headY);
+                const Gdiplus::REAL line1 = up ? glyph.Y + glyph.Height * 0.82f : glyph.Y + glyph.Height * 0.18f;
+                const Gdiplus::REAL line2 = up ? glyph.Y + glyph.Height : glyph.Y;
+                g.DrawLine(&pen, glyph.X + glyph.Width * 0.12f, line1, glyph.X + glyph.Width * 0.88f, line1);
+                g.DrawLine(&pen, glyph.X + glyph.Width * 0.12f, line2, glyph.X + glyph.Width * 0.88f, line2);
+                break;
+            }
+            case ToolbarCommand::OpenSettings:
+            {
+                // A gear: toothed ring around a hub.
+                const Gdiplus::REAL outer = glyph.Width * 0.34f;
+                const Gdiplus::REAL tooth = glyph.Width * 0.5f;
+                Gdiplus::Pen toothPen(glyphColor, s(3.0));
+                for (int t = 0; t < 8; ++t)
+                {
+                    const double angle = t * 3.14159265 / 4.0;
+                    const auto dx = static_cast<Gdiplus::REAL>(std::cos(angle));
+                    const auto dy = static_cast<Gdiplus::REAL>(std::sin(angle));
+                    g.DrawLine(&toothPen, cx + dx * outer, cy + dy * outer, cx + dx * tooth, cy + dy * tooth);
+                }
+                g.DrawEllipse(&pen, cx - outer, cy - outer, outer * 2, outer * 2);
+                Gdiplus::SolidBrush hub(glyphColor);
+                const Gdiplus::REAL hubR = glyph.Width * 0.12f;
+                g.FillEllipse(&hub, cx - hubR, cy - hubR, hubR * 2, hubR * 2);
+                break;
+            }
             case ToolbarCommand::SelectDrag:
             default:
             {

@@ -96,6 +96,23 @@ dwell is in progress.
 **Type:** boolean  
 **Default:** `true`
 
+### ToolbarButton properties
+
+Eight booleans choose which action buttons the toolbar carries; the
+collapse handle and pause are always present. Scroll actions keep
+scrolling while the pointer rests and stay selected until another
+action is chosen; `ToolbarButtonOpenSettings` is a button that opens
+PowerToys Settings, for users who cannot reach the system tray.
+
+- `ToolbarButtonLeftClick` (default `true`)
+- `ToolbarButtonDoubleClick` (default `true`)
+- `ToolbarButtonRightClick` (default `true`)
+- `ToolbarButtonMiddleClick` (default `false`)
+- `ToolbarButtonDrag` (default `true`)
+- `ToolbarButtonScrollUp` (default `true`)
+- `ToolbarButtonScrollDown` (default `true`)
+- `ToolbarButtonOpenSettings` (default `true`)
+
 ## Examples
 
 ### Example 1 - Configure dwell timing with direct execution

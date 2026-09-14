@@ -17,6 +17,11 @@ namespace
         const ToolbarRect r = model.ButtonRect(index);
         return PointL{ r.x + r.w / 2, r.y + r.h / 2 };
     }
+
+    PointL CenterOf(const ToolbarModel& model, ToolbarCommand command)
+    {
+        return CenterOf(model, model.IndexOf(command));
+    }
 }
 
 namespace DwellClickToolbarTests
@@ -27,11 +32,11 @@ namespace DwellClickToolbarTests
         TEST_METHOD (ExpandedShowsEveryButtonAndCollapsedOnlyTheHandle)
         {
             ToolbarModel model;
-            Assert::AreEqual(ToolbarModel::ButtonCount, model.VisibleButtonCount());
+            Assert::AreEqual(static_cast<int>(model.Buttons().size()), model.VisibleButtonCount());
 
             model.SetCollapsed(true);
             Assert::AreEqual(1, model.VisibleButtonCount());
-            Assert::IsTrue(model.Height() < ToolbarModel::ButtonCount * ToolbarModel::ButtonSize);
+            Assert::AreEqual(ToolbarModel::Padding * 2 + ToolbarModel::ButtonSize, model.Height());
         }
 
         TEST_METHOD (GapsAndPaddingHitNothing)
@@ -47,9 +52,66 @@ namespace DwellClickToolbarTests
         TEST_METHOD (CollapsedRejectsHitsOnHiddenButtons)
         {
             ToolbarModel model;
-            const PointL pauseCenter = CenterOf(model, ToolbarModel::PauseIndex);
+            const PointL pauseCenter = CenterOf(model, ToolbarCommand::TogglePause);
             model.SetCollapsed(true);
             Assert::AreEqual(-1, model.HitTest(pauseCenter));
+        }
+
+        TEST_METHOD (TheDefaultSetCarriesEveryCommandOnce)
+        {
+            ToolbarModel model;
+            Assert::AreEqual(0, model.IndexOf(ToolbarCommand::ToggleCollapse));
+            Assert::IsTrue(model.IndexOf(ToolbarCommand::TogglePause) > 0);
+            Assert::IsTrue(model.IndexOf(ToolbarCommand::SelectDoubleClick) > 0);
+            Assert::IsTrue(model.IndexOf(ToolbarCommand::SelectScrollUp) > 0);
+            Assert::IsTrue(model.IndexOf(ToolbarCommand::SelectScrollDown) > 0);
+            Assert::IsTrue(model.IndexOf(ToolbarCommand::OpenSettings) > 0);
+        }
+    };
+
+    TEST_CLASS (ToolbarCustomization)
+    {
+    public:
+        TEST_METHOD (SetButtonsChangesLayoutAndHitTargets)
+        {
+            ToolbarModel model;
+            const int fullHeight = model.Height();
+
+            model.SetButtons({
+                ToolbarCommand::ToggleCollapse,
+                ToolbarCommand::TogglePause,
+                ToolbarCommand::SelectLeftClick,
+            });
+
+            Assert::AreEqual(3, model.VisibleButtonCount());
+            Assert::IsTrue(model.Height() < fullHeight);
+            Assert::AreEqual(-1, model.IndexOf(ToolbarCommand::SelectDrag));
+            // The point where the fourth button used to be is now padding.
+            Assert::AreEqual(-1, model.HitTest(CenterOf(model, 2 + 1)));
+        }
+
+        TEST_METHOD (AHiddenCommandCannotActivate)
+        {
+            ToolbarModel model;
+            const PointL dragCenterInFullSet = CenterOf(model, ToolbarCommand::SelectDrag);
+
+            model.SetButtons({
+                ToolbarCommand::ToggleCollapse,
+                ToolbarCommand::TogglePause,
+                ToolbarCommand::SelectLeftClick,
+            });
+
+            // The old drag position is empty space now; a dwell there never fires anything.
+            model.OnPointer(dragCenterInFullSet, true, 0, DWELL_MS);
+            Assert::IsFalse(model.OnPointer(dragCenterInFullSet, true, 10 * DWELL_MS, DWELL_MS).has_value());
+        }
+
+        TEST_METHOD (SetButtonsResetsARunningHover)
+        {
+            ToolbarModel model;
+            model.OnPointer(CenterOf(model, ToolbarCommand::SelectLeftClick), true, 0, DWELL_MS);
+            model.SetButtons({ ToolbarCommand::ToggleCollapse, ToolbarCommand::TogglePause });
+            Assert::AreEqual(-1, model.HoveredIndex());
         }
     };
 
@@ -59,7 +121,7 @@ namespace DwellClickToolbarTests
         TEST_METHOD (HoverForTheDwellTimeActivates)
         {
             ToolbarModel model;
-            const PointL pause = CenterOf(model, ToolbarModel::PauseIndex);
+            const PointL pause = CenterOf(model, ToolbarCommand::TogglePause);
 
             Assert::IsFalse(model.OnPointer(pause, true, 0, DWELL_MS).has_value());
             Assert::IsFalse(model.OnPointer(pause, true, DWELL_MS - 1, DWELL_MS).has_value());
@@ -91,7 +153,7 @@ namespace DwellClickToolbarTests
         TEST_METHOD (ParkingOnAButtonFiresOnceNotOncePerDwellTime)
         {
             ToolbarModel model;
-            const PointL pause = CenterOf(model, ToolbarModel::PauseIndex);
+            const PointL pause = CenterOf(model, ToolbarCommand::TogglePause);
 
             model.OnPointer(pause, true, 0, DWELL_MS);
             Assert::IsTrue(model.OnPointer(pause, true, DWELL_MS, DWELL_MS).has_value());
@@ -104,7 +166,7 @@ namespace DwellClickToolbarTests
         TEST_METHOD (LeavingAndReturningRearmsTheButton)
         {
             ToolbarModel model;
-            const PointL pause = CenterOf(model, ToolbarModel::PauseIndex);
+            const PointL pause = CenterOf(model, ToolbarCommand::TogglePause);
 
             model.OnPointer(pause, true, 0, DWELL_MS);
             model.OnPointer(pause, true, DWELL_MS, DWELL_MS);
@@ -118,7 +180,7 @@ namespace DwellClickToolbarTests
         TEST_METHOD (ATickOlderThanTheAnchorDoesNotFire)
         {
             ToolbarModel model;
-            const PointL pause = CenterOf(model, ToolbarModel::PauseIndex);
+            const PointL pause = CenterOf(model, ToolbarCommand::TogglePause);
 
             model.OnPointer(pause, true, 1000, DWELL_MS);
             // A wrapped or stale tick reads as 0 elapsed rather than a huge value.
@@ -128,7 +190,7 @@ namespace DwellClickToolbarTests
         TEST_METHOD (ProgressRisesToOneAndClearsAfterActivation)
         {
             ToolbarModel model;
-            const PointL pause = CenterOf(model, ToolbarModel::PauseIndex);
+            const PointL pause = CenterOf(model, ToolbarCommand::TogglePause);
 
             model.OnPointer(pause, true, 0, DWELL_MS);
             Assert::AreEqual(0.5, model.HoverProgress(DWELL_MS / 2, DWELL_MS), 0.01);
@@ -139,7 +201,7 @@ namespace DwellClickToolbarTests
         TEST_METHOD (ADegenerateDwellTimeStaysDefined)
         {
             ToolbarModel model;
-            const PointL pause = CenterOf(model, ToolbarModel::PauseIndex);
+            const PointL pause = CenterOf(model, ToolbarCommand::TogglePause);
 
             model.OnPointer(pause, true, 0, 0);
             Assert::IsTrue(model.OnPointer(pause, true, 1, 0).has_value());
@@ -152,7 +214,7 @@ namespace DwellClickToolbarTests
         TEST_METHOD (APhysicalClickActivatesImmediatelyAndBlocksTheFollowingDwell)
         {
             ToolbarModel model;
-            const PointL drag = CenterOf(model, 6);
+            const PointL drag = CenterOf(model, ToolbarCommand::SelectDrag);
 
             const auto clicked = model.OnClick(drag);
             Assert::IsTrue(clicked.has_value());

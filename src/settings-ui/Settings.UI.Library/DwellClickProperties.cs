@@ -32,6 +32,30 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         [JsonPropertyName("show_countdown")]
         public BoolProperty ShowCountdown { get; set; }
 
+        [JsonPropertyName("toolbar_button_left_click")]
+        public BoolProperty ToolbarButtonLeftClick { get; set; }
+
+        [JsonPropertyName("toolbar_button_double_click")]
+        public BoolProperty ToolbarButtonDoubleClick { get; set; }
+
+        [JsonPropertyName("toolbar_button_right_click")]
+        public BoolProperty ToolbarButtonRightClick { get; set; }
+
+        [JsonPropertyName("toolbar_button_middle_click")]
+        public BoolProperty ToolbarButtonMiddleClick { get; set; }
+
+        [JsonPropertyName("toolbar_button_drag")]
+        public BoolProperty ToolbarButtonDrag { get; set; }
+
+        [JsonPropertyName("toolbar_button_scroll_up")]
+        public BoolProperty ToolbarButtonScrollUp { get; set; }
+
+        [JsonPropertyName("toolbar_button_scroll_down")]
+        public BoolProperty ToolbarButtonScrollDown { get; set; }
+
+        [JsonPropertyName("toolbar_button_open_settings")]
+        public BoolProperty ToolbarButtonOpenSettings { get; set; }
+
         public DwellClickProperties()
         {
             // Defaults mirror the module's dllmain.cpp and the engine's Settings defaults; see
@@ -44,6 +68,17 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             ShowToolbar = new BoolProperty(true);
             ToolbarSide = new IntProperty(0); // 0 = left edge, 1 = right edge
             ShowCountdown = new BoolProperty(true);
+
+            // The toolbar's collapse handle and pause button are always present; these choose
+            // the rest. Middle click is off by default as the least-used action.
+            ToolbarButtonLeftClick = new BoolProperty(true);
+            ToolbarButtonDoubleClick = new BoolProperty(true);
+            ToolbarButtonRightClick = new BoolProperty(true);
+            ToolbarButtonMiddleClick = new BoolProperty(false);
+            ToolbarButtonDrag = new BoolProperty(true);
+            ToolbarButtonScrollUp = new BoolProperty(true);
+            ToolbarButtonScrollDown = new BoolProperty(true);
+            ToolbarButtonOpenSettings = new BoolProperty(true);
         }
     }
 }

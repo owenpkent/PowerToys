@@ -94,9 +94,17 @@ integer product can overflow for extreme inputs, which the eventual fuzz target 
 
 ### Actions
 
-`DwellAction` is `LeftClick`, `RightClick`, `DoubleClick`, `MiddleClick`, or `Drag`. The engine
-lowers each to a `ClickKind` the injector synthesizes, so the injector stays a dumb `SendInput`
-wrapper and all sequencing lives in the engine.
+`DwellAction` is `LeftClick`, `RightClick`, `DoubleClick`, `MiddleClick`, `Drag`, `ScrollUp`, or
+`ScrollDown`. The engine lowers each to a `ClickKind` the injector synthesizes, so the injector
+stays a dumb `SendInput` wrapper and all sequencing lives in the engine.
+
+**Scroll is a mode, not a one-shot.** A scroll dwell injects one wheel notch at the rest point,
+then restarts its own countdown instead of locking: another notch lands each dwell period for as
+long as the pointer keeps resting, and the action never reverts to the default (a single notch
+snapping back to clicking would make scrolling useless). Movement re-anchors as usual, and a
+failed injection still locks rather than retrying. Selecting another action is the exit; this is
+the "scroll lock" behavior of the surveyed dwell products. Scroll cannot be the persisted default
+action (the module clamps `default_action` to the click actions); it is entered from the toolbar.
 
 **Drag is two dwells**, which is how every surveyed dwell product expresses click-and-drag without a
 held physical button: the first dwell presses the left button, the user moves, and the second dwell
@@ -172,7 +180,8 @@ The module lives on the Mouse Utilities settings page (`MouseUtilsPage.xaml`) wi
 dwell-time slider (200 ms to 5 s; the module clamps hand-edited values to 100 ms - 60 s), a
 default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox,
 number boxes for the two tolerances (0 - 100 px), and the overlay options: action toolbar on/off,
-toolbar side (left/right edge), and countdown ring on/off. `DwellClickProperties` must keep its
+toolbar side (left/right edge), countdown ring on/off, and eight checkboxes choosing which
+buttons the toolbar carries. `DwellClickProperties` must keep its
 defaults in sync with the engine and dllmain.cpp. DSC v3 can configure every property
 (`doc/dsc/modules/DwellClick.md`), and the module appears in OOBE's Mouse Utilities page.
 
@@ -186,10 +195,12 @@ pointer-attached countdown with an on-screen action menu:
   it can never take input or focus. It hides whenever the machine is locked, paused, or the
   pointer is over the toolbar (progress is 0 in all three).
 - **The action toolbar** docks to the left or right screen edge: a collapse handle, pause/resume,
-  and one button per action (left, double, right, middle, drag). Buttons activate by HOVERING for
-  the dwell time, with the button filling as feedback; a physical click activates immediately.
-  Both paths share the leave-to-rearm rule, so parking on Pause toggles once, not once per dwell
-  time.
+  and a Settings-chosen set of action buttons (left, double, right, middle, drag, scroll up,
+  scroll down, and an open-Settings gear; middle is off by default). Buttons activate by HOVERING
+  for the dwell time, with the button filling as feedback; a physical click activates
+  immediately. Both paths share the leave-to-rearm rule, so parking on Pause toggles once, not
+  once per dwell time. The gear exists because a dwell user cannot reach the tray icon: it
+  launches the standard `PowerToys.exe --open-settings=MouseUtils` deep link.
 - **While the pointer is over the toolbar, the engine stays locked** (the poll loop re-asserts
   `LockUntilMove` each tick). Dwells over the toolbar therefore select buttons instead of firing
   the current action onto them, and, since pause stops the engine but never the toolbar, the

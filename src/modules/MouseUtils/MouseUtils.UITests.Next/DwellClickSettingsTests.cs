@@ -25,6 +25,8 @@ public class DwellClickSettingsTests : UITestBase
     private const string ShowToolbarId = "MouseUtils_DwellClickShowToolbarId";
     private const string ToolbarSideId = "MouseUtils_DwellClickToolbarSideId";
     private const string ShowCountdownId = "MouseUtils_DwellClickShowCountdownId";
+    private const string ToolbarButtonMiddleClickId = "MouseUtils_DwellClickToolbarButtonMiddleClickId";
+    private const string ToolbarButtonScrollDownId = "MouseUtils_DwellClickToolbarButtonScrollDownId";
 
     // The behavioral tests observe the Drag action: its first dwell presses and HOLDS the left
     // button (readable in GetAsyncKeyState, like the Mouse Button Lock tests), and its second
@@ -153,10 +155,14 @@ public class DwellClickSettingsTests : UITestBase
         SetCheckBox(RevertToDefaultId, check: false);
         AssertPersistedBool("revert_to_default_after_action", false);
 
-        // Overlay options. The side combo is set before hiding the toolbar, because hiding
-        // the toolbar disables the side combo (mirroring the IsEnabled binding).
+        // Overlay options. Everything toolbar-related is set before hiding the toolbar,
+        // because hiding it disables those controls (mirroring the IsEnabled bindings).
         Session.Find<ComboBox>(By.AccessibilityId(ToolbarSideId), 5_000).Select("Right edge");
         AssertPersistedInt("toolbar_side", 1);
+        SetCheckBox(ToolbarButtonMiddleClickId, check: true);
+        AssertPersistedBool("toolbar_button_middle_click", true);
+        SetCheckBox(ToolbarButtonScrollDownId, check: false);
+        AssertPersistedBool("toolbar_button_scroll_down", false);
         SetCheckBox(ShowCountdownId, check: false);
         AssertPersistedBool("show_countdown", false);
         SetCheckBox(ShowToolbarId, check: false);
@@ -170,6 +176,8 @@ public class DwellClickSettingsTests : UITestBase
         AssertPersistedInt("default_action", 1);
         AssertPersistedBool("revert_to_default_after_action", false);
         AssertPersistedInt("toolbar_side", 1);
+        AssertPersistedBool("toolbar_button_middle_click", true);
+        AssertPersistedBool("toolbar_button_scroll_down", false);
         AssertPersistedBool("show_toolbar", false);
         AssertPersistedBool("show_countdown", false);
     }

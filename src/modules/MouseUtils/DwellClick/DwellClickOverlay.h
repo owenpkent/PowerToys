@@ -17,9 +17,10 @@
 //   - A countdown ring that follows the pointer and fills with PollResult.progress, so the
 //     user always sees when a click is about to land. The window is layered, topmost, and
 //     click-through: it can never receive input or steal focus.
-//   - An action toolbar docked to a screen edge: a collapse handle, pause/resume, and one
-//     button per DwellAction. It accepts input (hover dwells and physical clicks) but never
-//     activates, and its decisions live in the Win32-free ToolbarModel.
+//   - An action toolbar docked to a screen edge: a collapse handle, pause/resume, and a
+//     Settings-chosen set of action buttons (clicks, drag, scroll modes, open Settings). It
+//     accepts input (hover dwells and physical clicks) but never activates, and its
+//     decisions live in the Win32-free ToolbarModel.
 //
 // Both windows are created, painted, and destroyed on the module's hook thread, which
 // already pumps messages; commands therefore reach the caller's callback on that same
@@ -31,6 +32,30 @@ namespace dwellclick
         bool showToolbar = true;
         int toolbarSide = 0; // 0 = left edge, 1 = right edge
         bool showCountdown = true;
+
+        // Which action buttons the toolbar carries. The collapse handle and pause are always
+        // present: collapse is the handle itself, and pause is the safety escape every
+        // surveyed dwell tool ships.
+        bool buttonLeftClick = true;
+        bool buttonDoubleClick = true;
+        bool buttonRightClick = true;
+        bool buttonMiddleClick = false;
+        bool buttonDrag = true;
+        bool buttonScrollUp = true;
+        bool buttonScrollDown = true;
+        bool buttonOpenSettings = true;
+
+        bool SameButtons(const OverlaySettings& other) const
+        {
+            return buttonLeftClick == other.buttonLeftClick &&
+                   buttonDoubleClick == other.buttonDoubleClick &&
+                   buttonRightClick == other.buttonRightClick &&
+                   buttonMiddleClick == other.buttonMiddleClick &&
+                   buttonDrag == other.buttonDrag &&
+                   buttonScrollUp == other.buttonScrollUp &&
+                   buttonScrollDown == other.buttonScrollDown &&
+                   buttonOpenSettings == other.buttonOpenSettings;
+        }
     };
 
     struct ToolbarVisualState
@@ -92,6 +117,7 @@ namespace dwellclick
         ToolbarVisualState m_state;
         ULONG_PTR m_gdiplusToken = 0;
         RECT m_toolbarRect{};
+        bool m_buttonsInitialized = false;
         bool m_indicatorVisible = false;
         double m_lastPaintedProgress = -1.0;
         int m_lastPaintedHover = -2;

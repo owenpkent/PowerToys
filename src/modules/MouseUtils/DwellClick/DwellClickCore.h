@@ -30,6 +30,10 @@ namespace dwellclick
     // What a completed dwell does. Left/Right/Double/Middle fire a click in place; Drag is a
     // two-dwell gesture (first dwell presses the left button, second dwell releases it), which is
     // how every surveyed dwell product expresses click-and-drag without a held physical button.
+    // ScrollUp/ScrollDown turn a dwell into a wheel notch at the rest point; they are the one
+    // action family that AUTO-REPEATS (another notch per dwell period while the pointer keeps
+    // resting) and never reverts to the default action, because a single notch that snaps back
+    // to clicking would make scrolling useless. Selecting another action is the exit.
     enum class DwellAction
     {
         LeftClick,
@@ -37,10 +41,13 @@ namespace dwellclick
         DoubleClick,
         MiddleClick,
         Drag,
+        ScrollUp,
+        ScrollDown,
     };
 
     // The primitive the injector is asked to synthesize. Drag is decomposed into LeftDown/LeftUp so
-    // the injector stays a dumb SendInput wrapper and all sequencing lives in the engine.
+    // the injector stays a dumb SendInput wrapper and all sequencing lives in the engine; the
+    // scroll kinds are one wheel notch each.
     enum class ClickKind
     {
         LeftClick,
@@ -49,6 +56,8 @@ namespace dwellclick
         MiddleClick,
         LeftDown,
         LeftUp,
+        ScrollUp,
+        ScrollDown,
     };
 
     // A plain point so the core does not need <windows.h>.
@@ -186,10 +195,20 @@ namespace dwellclick
             result.fired = FireAction(m_nextAction, s);
             result.action = m_firedAction;
 
-            // Lock regardless of whether the injection succeeded. On success this is the re-arm
-            // rule; on failure it stops a blocked injection (against an elevated window, say)
-            // from retrying on every poll for as long as the pointer rests there.
-            LockAfterAction();
+            if (result.fired && IsScrollAction(m_firedAction))
+            {
+                // Scrolling auto-repeats: restart the countdown at the same anchor so another
+                // notch lands each dwell period for as long as the pointer keeps resting.
+                // Movement re-anchors as usual, and pause or the toolbar stops it.
+                m_restStartTick = tick;
+            }
+            else
+            {
+                // Lock regardless of whether the injection succeeded. On success this is the
+                // re-arm rule; on failure it stops a blocked injection (against an elevated
+                // window, say) from retrying on every poll for as long as the pointer rests there.
+                LockAfterAction();
+            }
 
             return result;
         }
@@ -316,12 +335,23 @@ namespace dwellclick
             m_anchor = m_current;
         }
 
+        static constexpr bool IsScrollAction(DwellAction action)
+        {
+            return action == DwellAction::ScrollUp || action == DwellAction::ScrollDown;
+        }
+
         // Inject the action. Returns whether the OS accepted it. Drag advances its own two-step
         // state and only reverts once the drop completes, so an interrupted drag cannot leave the
         // action stuck halfway.
         bool FireAction(DwellAction action, const Settings& s)
         {
             m_firedAction = action;
+
+            if (IsScrollAction(action))
+            {
+                // Deliberately no revert (see DwellAction): scroll is a mode, not a one-shot.
+                return m_injector.Inject(ToClickKind(action), m_current);
+            }
 
             if (action == DwellAction::Drag)
             {
@@ -372,6 +402,10 @@ namespace dwellclick
                 return ClickKind::DoubleClick;
             case DwellAction::MiddleClick:
                 return ClickKind::MiddleClick;
+            case DwellAction::ScrollUp:
+                return ClickKind::ScrollUp;
+            case DwellAction::ScrollDown:
+                return ClickKind::ScrollDown;
             case DwellAction::Drag:
             case DwellAction::LeftClick:
             default:
