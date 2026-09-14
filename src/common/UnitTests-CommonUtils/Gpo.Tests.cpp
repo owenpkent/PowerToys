@@ -142,6 +142,12 @@ namespace UnitTestsCommonUtils
             Assert::IsTrue(IsValidGpoResult(result));
         }
 
+        TEST_METHOD(GetConfiguredDwellClickEnabledValue_ReturnsValidState)
+        {
+            auto result = getConfiguredDwellClickEnabledValue();
+            Assert::IsTrue(IsValidGpoResult(result));
+        }
+
         TEST_METHOD(GetConfiguredMouseWithoutBordersEnabledValue_ReturnsValidState)
         {
             auto result = getConfiguredMouseWithoutBordersEnabledValue();

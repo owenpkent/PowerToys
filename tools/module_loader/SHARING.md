@@ -93,6 +93,18 @@ Note: MouseJump is a UI-based module and may not work fully with ModuleLoader
 Size: ~200KB
 ```
 
+### DwellClick
+```
+Files to share:
+  - x64\Debug\PowerToys.DwellClick.dll  (or Release)
+  - %LOCALAPPDATA%\Microsoft\PowerToys\DwellClick\settings.json
+
+Note: the module installs a low-level mouse hook and a polling thread; a drag
+      held by a dwell is released when the module is disabled or the host
+      process exits gracefully.
+Size: ~650KB
+```
+
 ### AlwaysOnTop
 ```
 Files to share:

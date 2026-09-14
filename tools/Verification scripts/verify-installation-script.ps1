@@ -414,6 +414,7 @@ function Test-CoreFiles {
         'Wox.Plugin.dll',
         
         # Mouse utilities
+        'PowerToys.DwellClick.dll',
         'PowerToys.FindMyMouse.dll',
         'PowerToys.MouseHighlighter.dll',
         'PowerToys.MouseJump.dll',
