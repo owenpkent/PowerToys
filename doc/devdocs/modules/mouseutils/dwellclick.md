@@ -1,8 +1,8 @@
 # Dwell Click
 
 > **Status: in development.** The engine, its unit tests and fuzz target, the module DLL, the
-> Settings UI page, GPO policy, DSC support, and UI tests are all in the repo today. The countdown
-> indicator at the cursor is the main remaining piece. See
+> on-screen overlay (countdown ring and action toolbar), the Settings UI page, GPO policy, DSC
+> support, and UI tests are all in the repo today. See
 > [Not yet implemented](#not-yet-implemented) for what remains.
 
 Dwell Click issues a mouse click automatically when the pointer is held still for a configurable
@@ -21,6 +21,11 @@ events and a monotonic tick, and performs the injections the engine asks for.
 - [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) - 30 unit tests
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
+- [DwellClickToolbar.h](/src/modules/MouseUtils/DwellClick/DwellClickToolbar.h) - the toolbar's
+  Win32-free state machine, tested by
+  [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp)
+- [DwellClickOverlay.cpp](/src/modules/MouseUtils/DwellClick/DwellClickOverlay.cpp) - the layered
+  windows for the countdown ring and the action toolbar
 
 ### Why the engine is Win32-free
 
@@ -165,10 +170,41 @@ the installation verification script, the bug report tool's GPO dump, and teleme
 
 The module lives on the Mouse Utilities settings page (`MouseUtilsPage.xaml`) with a toggle, a
 dwell-time slider (200 ms to 5 s; the module clamps hand-edited values to 100 ms - 60 s), a
-default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox, and
-number boxes for the two tolerances (0 - 100 px). `DwellClickProperties` must keep its defaults in
-sync with the engine and dllmain.cpp. DSC v3 can configure every property
+default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox,
+number boxes for the two tolerances (0 - 100 px), and the overlay options: action toolbar on/off,
+toolbar side (left/right edge), and countdown ring on/off. `DwellClickProperties` must keep its
+defaults in sync with the engine and dllmain.cpp. DSC v3 can configure every property
 (`doc/dsc/modules/DwellClick.md`), and the module appears in OOBE's Mouse Utilities page.
+
+## The overlay
+
+The interaction model follows Ease Mouse and its open-source clone OpenMouse, which pair a
+pointer-attached countdown with an on-screen action menu:
+
+- **The countdown ring** follows the pointer and fills with `PollResult.progress`, so the user
+  always sees when a click is about to land. Its window is layered, topmost, and click-through;
+  it can never take input or focus. It hides whenever the machine is locked, paused, or the
+  pointer is over the toolbar (progress is 0 in all three).
+- **The action toolbar** docks to the left or right screen edge: a collapse handle, pause/resume,
+  and one button per action (left, double, right, middle, drag). Buttons activate by HOVERING for
+  the dwell time, with the button filling as feedback; a physical click activates immediately.
+  Both paths share the leave-to-rearm rule, so parking on Pause toggles once, not once per dwell
+  time.
+- **While the pointer is over the toolbar, the engine stays locked** (the poll loop re-asserts
+  `LockUntilMove` each tick). Dwells over the toolbar therefore select buttons instead of firing
+  the current action onto them, and, since pause stops the engine but never the toolbar, the
+  resume button stays reachable while paused: the answer to "a user who cannot click also cannot
+  un-pause".
+- Selecting a new action mid-drag releases the held button first (`ReleaseDrag`), so switching
+  away from a half-finished drag can never leave the left button stuck.
+- The toolbar's hover/hit-test/re-arm logic lives in the Win32-free `ToolbarModel`
+  (DwellClickToolbar.h), unit tested and driven by the fuzz target; DwellClickOverlay.cpp is the
+  thin layered-window and GDI+ painting shell around it, living entirely on the hook thread so
+  the engine stays single-threaded. Glyphs are drawn as pictograms (no text), so the overlay
+  needs no localized resources.
+
+Both surfaces can be turned off in Settings (`show_toolbar`, `show_countdown`), and the toolbar
+edge is `toolbar_side`. The toolbar currently docks to the primary monitor.
 
 ## Defaults
 
@@ -222,13 +258,11 @@ Beyond the unit tests:
 
 Still to build:
 
-- A countdown indicator at the cursor. This is not cosmetic: without visible feedback a user cannot
-  tell when a click is about to land, and feedback design is tied directly to error rates in the
-  dwell literature. Feedback should stay simple at short dwell times, where richer multi-level cues
-  were found confusing. The module's poll loop already receives the progress value each tick.
-- Action-selection UX beyond the settings dropdown: a hotkey cycle or a floating toolbar needs no
-  engine changes; post-dwell directional gestures, the GNOME alternative mode, would need engine
-  work.
+- Post-dwell directional gestures (the GNOME Hover Click alternative mode) would need engine work;
+  the toolbar covers action selection without them.
+- The toolbar docks to the primary monitor only; per-monitor placement (following the pointer's
+  monitor) is a possible follow-up.
+- A hotkey to toggle pause without reaching the toolbar.
 
 Command Palette is deliberately unwired, matching the Mouse Button Lock decision: the sibling
 CmdPal entries fire a module trigger event, and this module has no trigger event; activation is

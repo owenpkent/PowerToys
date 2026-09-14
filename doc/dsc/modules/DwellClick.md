@@ -71,6 +71,31 @@ dwell into a right click.
 **Type:** boolean  
 **Default:** `true`
 
+### ShowToolbar
+
+Controls whether the on-screen action toolbar is shown. The toolbar
+docks to a screen edge; hovering one of its buttons for the dwell time
+selects that action (or pauses dwelling) with no click needed.
+
+**Type:** boolean  
+**Default:** `true`
+
+### ToolbarSide
+
+Sets which screen edge the action toolbar docks to.
+
+**Type:** integer  
+**Values:** `0` = left edge, `1` = right edge  
+**Default:** `0`
+
+### ShowCountdown
+
+Controls whether the countdown ring is drawn at the pointer while a
+dwell is in progress.
+
+**Type:** boolean  
+**Default:** `true`
+
 ## Examples
 
 ### Example 1 - Configure dwell timing with direct execution

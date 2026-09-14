@@ -2887,6 +2887,26 @@ From there, simply click on one of the supported files in the File Explorer and 
   <data name="MouseUtils_DwellClick_PostActionTolerance.Description" xml:space="preserve">
     <value>How far the pointer must move after a click before a new dwell can begin. This stops a resting pointer from clicking the same spot again.</value>
   </data>
+  <data name="MouseUtils_DwellClick_ShowToolbar.Content" xml:space="preserve">
+    <value>Show the action toolbar</value>
+    <comment>The toolbar is an on-screen strip of buttons for choosing the dwell action.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide.Header" xml:space="preserve">
+    <value>Toolbar side</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide.Description" xml:space="preserve">
+    <value>Which edge of the screen the toolbar docks to. Hover a toolbar button for the dwell time to choose it, with no click needed.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide_Left.Content" xml:space="preserve">
+    <value>Left edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide_Right.Content" xml:space="preserve">
+    <value>Right edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ShowCountdown.Content" xml:space="preserve">
+    <value>Show the countdown ring at the pointer</value>
+    <comment>The ring fills up while the pointer rests, showing when the click will land.</comment>
+  </data>
   <data name="MouseUtils_CursorWrap_ActivationShortcut.Header" xml:space="preserve">
     <value>Activation and behavior</value>
   </data>

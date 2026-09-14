@@ -22,6 +22,9 @@ public class DwellClickSettingsTests : UITestBase
     private const string RevertToDefaultId = "MouseUtils_DwellClickRevertToDefaultId";
     private const string MoveToleranceId = "MouseUtils_DwellClickMoveToleranceId";
     private const string PostActionToleranceId = "MouseUtils_DwellClickPostActionToleranceId";
+    private const string ShowToolbarId = "MouseUtils_DwellClickShowToolbarId";
+    private const string ToolbarSideId = "MouseUtils_DwellClickToolbarSideId";
+    private const string ShowCountdownId = "MouseUtils_DwellClickShowCountdownId";
 
     // The behavioral tests observe the Drag action: its first dwell presses and HOLDS the left
     // button (readable in GetAsyncKeyState, like the Mouse Button Lock tests), and its second
@@ -58,14 +61,16 @@ public class DwellClickSettingsTests : UITestBase
 
     protected override void PrepareTestState()
     {
+        // The behavioral tests hide the toolbar so their desktop gestures have exactly one
+        // moving part; the persistence tests keep the shipping defaults.
         var settings = TestContext.TestName switch
         {
             nameof(SectionNavigationAndModuleLifecycleAreAvailable) =>
-                CreateSettings(dwellTimeMs: FastDwellTimeMs, moveTolerancePixels: 10, postActionTolerancePixels: 10, defaultAction: 4, revertToDefault: false),
+                CreateSettings(dwellTimeMs: FastDwellTimeMs, moveTolerancePixels: 10, postActionTolerancePixels: 10, defaultAction: 4, revertToDefault: false, showToolbar: false),
             nameof(ADwellCompletesADragAndASecondDwellReleasesIt) =>
-                CreateSettings(dwellTimeMs: FastDwellTimeMs, moveTolerancePixels: 10, postActionTolerancePixels: 10, defaultAction: 4, revertToDefault: false),
+                CreateSettings(dwellTimeMs: FastDwellTimeMs, moveTolerancePixels: 10, postActionTolerancePixels: 10, defaultAction: 4, revertToDefault: false, showToolbar: false),
             _ =>
-                CreateSettings(dwellTimeMs: 1200, moveTolerancePixels: 10, postActionTolerancePixels: 10, defaultAction: 0, revertToDefault: true),
+                CreateSettings(dwellTimeMs: 1200, moveTolerancePixels: 10, postActionTolerancePixels: 10, defaultAction: 0, revertToDefault: true, showToolbar: true),
         };
         MouseUtilsTestHelper.ReplaceModuleSettings(ModuleName, settings);
     }
@@ -148,11 +153,25 @@ public class DwellClickSettingsTests : UITestBase
         SetCheckBox(RevertToDefaultId, check: false);
         AssertPersistedBool("revert_to_default_after_action", false);
 
+        // Overlay options. The side combo is set before hiding the toolbar, because hiding
+        // the toolbar disables the side combo (mirroring the IsEnabled binding).
+        Session.Find<ComboBox>(By.AccessibilityId(ToolbarSideId), 5_000).Select("Right edge");
+        AssertPersistedInt("toolbar_side", 1);
+        SetCheckBox(ShowCountdownId, check: false);
+        AssertPersistedBool("show_countdown", false);
+        SetCheckBox(ShowToolbarId, check: false);
+        AssertPersistedBool("show_toolbar", false);
+
         RestartScope();
         OpenOptions();
         AssertCheckBoxState(RevertToDefaultId, expectedChecked: false);
+        AssertCheckBoxState(ShowToolbarId, expectedChecked: false);
+        AssertCheckBoxState(ShowCountdownId, expectedChecked: false);
         AssertPersistedInt("default_action", 1);
         AssertPersistedBool("revert_to_default_after_action", false);
+        AssertPersistedInt("toolbar_side", 1);
+        AssertPersistedBool("show_toolbar", false);
+        AssertPersistedBool("show_countdown", false);
     }
 
     [TestMethod]
@@ -234,6 +253,8 @@ public class DwellClickSettingsTests : UITestBase
         Assert.IsTrue(Session.Has(By.AccessibilityId(RevertToDefaultId), 5_000), "Revert checkbox was not available.");
         Assert.IsTrue(Session.Has(By.AccessibilityId(MoveToleranceId), 5_000), "Movement tolerance control was not available.");
         Assert.IsTrue(Session.Has(By.AccessibilityId(PostActionToleranceId), 5_000), "Post-action tolerance control was not available.");
+        Assert.IsTrue(Session.Has(By.AccessibilityId(ShowToolbarId), 5_000), "Show toolbar checkbox was not available.");
+        Assert.IsTrue(Session.Has(By.AccessibilityId(ShowCountdownId), 5_000), "Show countdown checkbox was not available.");
     }
 
     private void SetCheckBox(string accessibilityId, bool check)
@@ -376,7 +397,7 @@ public class DwellClickSettingsTests : UITestBase
         ModuleName,
         "settings.json");
 
-    private static string CreateSettings(int dwellTimeMs, int moveTolerancePixels, int postActionTolerancePixels, int defaultAction, bool revertToDefault) => $$"""
+    private static string CreateSettings(int dwellTimeMs, int moveTolerancePixels, int postActionTolerancePixels, int defaultAction, bool revertToDefault, bool showToolbar) => $$"""
         {
           "name": "DwellClick",
           "version": "1.0",
@@ -385,7 +406,10 @@ public class DwellClickSettingsTests : UITestBase
             "move_tolerance_pixels": { "value": {{moveTolerancePixels}} },
             "post_action_tolerance_pixels": { "value": {{postActionTolerancePixels}} },
             "default_action": { "value": {{defaultAction}} },
-            "revert_to_default_after_action": { "value": {{revertToDefault.ToString().ToLowerInvariant()}} }
+            "revert_to_default_after_action": { "value": {{revertToDefault.ToString().ToLowerInvariant()}} },
+            "show_toolbar": { "value": {{showToolbar.ToString().ToLowerInvariant()}} },
+            "toolbar_side": { "value": 0 },
+            "show_countdown": { "value": true }
           }
         }
         """;

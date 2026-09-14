@@ -157,12 +157,18 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             DwellClickSettingsConfig.Properties.PostActionTolerancePixels ??= new IntProperty(10);
             DwellClickSettingsConfig.Properties.DefaultAction ??= new IntProperty(0);
             DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ShowToolbar ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarSide ??= new IntProperty(0);
+            DwellClickSettingsConfig.Properties.ShowCountdown ??= new BoolProperty(true);
 
             _dwellClickDwellTimeMs = DwellClickSettingsConfig.Properties.DwellTimeMs.Value;
             _dwellClickMoveTolerancePixels = DwellClickSettingsConfig.Properties.MoveTolerancePixels.Value;
             _dwellClickPostActionTolerancePixels = DwellClickSettingsConfig.Properties.PostActionTolerancePixels.Value;
             _dwellClickDefaultAction = DwellClickSettingsConfig.Properties.DefaultAction.Value;
             _dwellClickRevertToDefaultAfterAction = DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction.Value;
+            _dwellClickShowToolbar = DwellClickSettingsConfig.Properties.ShowToolbar.Value;
+            _dwellClickToolbarSide = DwellClickSettingsConfig.Properties.ToolbarSide.Value;
+            _dwellClickShowCountdown = DwellClickSettingsConfig.Properties.ShowCountdown.Value;
 
             int isEnabled = 0;
 
@@ -1564,6 +1570,48 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             }
         }
 
+        public bool DwellClickShowToolbar
+        {
+            get => _dwellClickShowToolbar;
+            set
+            {
+                if (value != _dwellClickShowToolbar)
+                {
+                    _dwellClickShowToolbar = value;
+                    DwellClickSettingsConfig.Properties.ShowToolbar.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickToolbarSide
+        {
+            get => _dwellClickToolbarSide;
+            set
+            {
+                if (value != _dwellClickToolbarSide)
+                {
+                    _dwellClickToolbarSide = value;
+                    DwellClickSettingsConfig.Properties.ToolbarSide.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickShowCountdown
+        {
+            get => _dwellClickShowCountdown;
+            set
+            {
+                if (value != _dwellClickShowCountdown)
+                {
+                    _dwellClickShowCountdown = value;
+                    DwellClickSettingsConfig.Properties.ShowCountdown.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
         public void NotifyDwellClickPropertyChanged([CallerMemberName] string propertyName = null)
         {
             OnPropertyChanged(propertyName);
@@ -1663,5 +1711,8 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private int _dwellClickPostActionTolerancePixels;
         private int _dwellClickDefaultAction; // matches dwellclick::DwellAction: 0=Left, 1=Right, 2=Double, 3=Middle, 4=Drag
         private bool _dwellClickRevertToDefaultAfterAction;
+        private bool _dwellClickShowToolbar;
+        private int _dwellClickToolbarSide; // 0=Left edge, 1=Right edge
+        private bool _dwellClickShowCountdown;
     }
 }

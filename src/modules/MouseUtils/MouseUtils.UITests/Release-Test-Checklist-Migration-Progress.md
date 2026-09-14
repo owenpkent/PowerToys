@@ -96,7 +96,7 @@ Automated by [CursorWrapTests.cs](../MouseUtils.UITests.Next/CursorWrapTests.cs)
 ### Dwell Click
 
 - [x] The Dwell Click settings group is visible; disabling the module disables its "Timing and actions" options and re-enabling restores them. The module has no separate worker process, window, or named event, so the enabled/disabled effect is verified by whether resting the pointer actually starts the seeded Drag action.
-- [x] The default action combo box and the revert-to-default checkbox change and persist, including across a restart.
+- [x] The default action combo box, the revert-to-default checkbox, and the overlay options (action toolbar on/off, toolbar side, countdown ring on/off) change and persist, including across a restart. Behavioral tests seed the toolbar hidden so their desktop gestures have one moving part; the toolbar's own hover-dwell logic is unit tested in ToolbarModelTests.
 - [x] Dwell time (200-5000 ms) and both movement tolerances (0-100 px) boundary values persist, including across a restart.
 - [x] A dwell over the desktop completes a Drag action's press, observable in the system button state, and a second dwell after moving past the post-action tolerance releases it. Plain click actions are covered by the engine unit tests; their down+up pair is too transient to observe from a test.
 

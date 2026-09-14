@@ -26,6 +26,9 @@ public sealed class SettingsResourceDwellClickModuleTest : SettingsResourceModul
             s.Properties.PostActionTolerancePixels.Value = 20;
             s.Properties.DefaultAction.Value = 1;
             s.Properties.RevertToDefaultAfterAction.Value = !s.Properties.RevertToDefaultAfterAction.Value;
+            s.Properties.ShowToolbar.Value = !s.Properties.ShowToolbar.Value;
+            s.Properties.ToolbarSide.Value = 1;
+            s.Properties.ShowCountdown.Value = !s.Properties.ShowCountdown.Value;
         };
     }
 }

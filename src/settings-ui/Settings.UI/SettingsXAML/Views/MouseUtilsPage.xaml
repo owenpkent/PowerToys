@@ -200,6 +200,21 @@
                                     SpinButtonPlacementMode="Compact"
                                     Value="{x:Bind ViewModel.DwellClickPostActionTolerancePixels, Mode=TwoWay}" />
                             </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ShowToolbar" AutomationProperties.AutomationId="MouseUtils_DwellClickShowToolbarId" IsChecked="{x:Bind ViewModel.DwellClickShowToolbar, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard
+                                Name="MouseUtilsDwellClickToolbarSide"
+                                x:Uid="MouseUtils_DwellClick_ToolbarSide"
+                                IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <ComboBox MinWidth="{StaticResource SettingActionControlMinWidth}" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarSideId" SelectedIndex="{x:Bind Path=ViewModel.DwellClickToolbarSide, Mode=TwoWay}">
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_ToolbarSide_Left" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_ToolbarSide_Right" />
+                                </ComboBox>
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ShowCountdown" AutomationProperties.AutomationId="MouseUtils_DwellClickShowCountdownId" IsChecked="{x:Bind ViewModel.DwellClickShowCountdown, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
                         </tkcontrols:SettingsExpander.Items>
                     </tkcontrols:SettingsExpander>
                 </controls:SettingsGroup>

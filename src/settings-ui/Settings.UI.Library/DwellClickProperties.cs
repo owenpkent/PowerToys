@@ -23,6 +23,15 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         [JsonPropertyName("revert_to_default_after_action")]
         public BoolProperty RevertToDefaultAfterAction { get; set; }
 
+        [JsonPropertyName("show_toolbar")]
+        public BoolProperty ShowToolbar { get; set; }
+
+        [JsonPropertyName("toolbar_side")]
+        public IntProperty ToolbarSide { get; set; }
+
+        [JsonPropertyName("show_countdown")]
+        public BoolProperty ShowCountdown { get; set; }
+
         public DwellClickProperties()
         {
             // Defaults mirror the module's dllmain.cpp and the engine's Settings defaults; see
@@ -32,6 +41,9 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             PostActionTolerancePixels = new IntProperty(10);
             DefaultAction = new IntProperty(0); // 0 = left click; matches dwellclick::DwellAction
             RevertToDefaultAfterAction = new BoolProperty(true);
+            ShowToolbar = new BoolProperty(true);
+            ToolbarSide = new IntProperty(0); // 0 = left edge, 1 = right edge
+            ShowCountdown = new BoolProperty(true);
         }
     }
 }
