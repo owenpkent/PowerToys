@@ -15,6 +15,8 @@ properties:
           Enabled: true
         CropAndLock:
           Enabled: true
+        DwellClick:
+          Enabled: true
         EnvironmentVariables:
           Enabled: true
         FancyZones:

@@ -36,6 +36,7 @@ Controls which PowerToys utilities are enabled or disabled.
 - `Awake` (boolean) - Enable/disable Awake utility.
 - `ColorPicker` (boolean) - Enable/disable Color Picker utility.
 - `CropAndLock` (boolean) - Enable/disable Crop And Lock utility.
+- `DwellClick` (boolean) - Enable/disable Dwell Click utility.
 - `EnvironmentVariables` (boolean) - Enable/disable Environment Variables
   utility.
 - `FancyZones` (boolean) - Enable/disable FancyZones utility.
@@ -97,6 +98,7 @@ $config = @{
                 Awake = $false
                 ColorPicker = $true
                 CropAndLock = $false
+                DwellClick = $false
                 EnvironmentVariables = $false
                 FancyZones = $true
                 FileLocksmith = $false
@@ -183,6 +185,7 @@ resources:
             Awake: true
             ColorPicker: true
             CropAndLock: true
+            DwellClick: true
             EnvironmentVariables: true
             FancyZones: true
             FileLocksmith: true
