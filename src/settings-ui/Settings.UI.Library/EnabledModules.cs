@@ -561,6 +561,23 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             }
         }
 
+        private bool dwellClick; // defaulting to off
+
+        [JsonPropertyName("DwellClick")]
+        public bool DwellClick
+        {
+            get => dwellClick;
+            set
+            {
+                if (dwellClick != value)
+                {
+                    LogTelemetryEvent(value);
+                    dwellClick = value;
+                    NotifyChange();
+                }
+            }
+        }
+
         private bool lightSwitch;
 
         [JsonPropertyName("LightSwitch")]

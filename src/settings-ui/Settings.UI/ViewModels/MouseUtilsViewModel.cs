@@ -33,7 +33,9 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
 
         private CursorWrapSettings CursorWrapSettingsConfig { get; set; }
 
-        public MouseUtilsViewModel(SettingsUtils settingsUtils, ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<AutoHideCursorSettings> autoHideCursorSettingsRepository, ISettingsRepository<FindMyMouseSettings> findMyMouseSettingsRepository, ISettingsRepository<MouseHighlighterSettings> mouseHighlighterSettingsRepository, ISettingsRepository<MouseJumpSettings> mouseJumpSettingsRepository, ISettingsRepository<MousePointerCrosshairsSettings> mousePointerCrosshairsSettingsRepository, ISettingsRepository<CursorWrapSettings> cursorWrapSettingsRepository, Func<string, int> ipcMSGCallBackFunc)
+        private DwellClickSettings DwellClickSettingsConfig { get; set; }
+
+        public MouseUtilsViewModel(SettingsUtils settingsUtils, ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<AutoHideCursorSettings> autoHideCursorSettingsRepository, ISettingsRepository<FindMyMouseSettings> findMyMouseSettingsRepository, ISettingsRepository<MouseHighlighterSettings> mouseHighlighterSettingsRepository, ISettingsRepository<MouseJumpSettings> mouseJumpSettingsRepository, ISettingsRepository<MousePointerCrosshairsSettings> mousePointerCrosshairsSettingsRepository, ISettingsRepository<CursorWrapSettings> cursorWrapSettingsRepository, ISettingsRepository<DwellClickSettings> dwellClickSettingsRepository, Func<string, int> ipcMSGCallBackFunc)
         {
             SettingsUtils = settingsUtils;
 
@@ -141,6 +143,27 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             // Null-safe access in case property wasn't upgraded yet - default to false
             _cursorWrapDisableOnSingleMonitor = CursorWrapSettingsConfig.Properties.DisableCursorWrapOnSingleMonitor?.Value ?? false;
 
+            ArgumentNullException.ThrowIfNull(dwellClickSettingsRepository);
+
+            DwellClickSettingsConfig = dwellClickSettingsRepository.SettingsConfig;
+
+            // Null-safe in case a hand-edited settings.json carries explicit nulls: repair the
+            // properties container and its members to their defaults so both the reads below and
+            // the property setters are safe (covers a "properties": null payload that would
+            // otherwise throw here).
+            DwellClickSettingsConfig.Properties ??= new DwellClickProperties();
+            DwellClickSettingsConfig.Properties.DwellTimeMs ??= new IntProperty(1200);
+            DwellClickSettingsConfig.Properties.MoveTolerancePixels ??= new IntProperty(10);
+            DwellClickSettingsConfig.Properties.PostActionTolerancePixels ??= new IntProperty(10);
+            DwellClickSettingsConfig.Properties.DefaultAction ??= new IntProperty(0);
+            DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction ??= new BoolProperty(true);
+
+            _dwellClickDwellTimeMs = DwellClickSettingsConfig.Properties.DwellTimeMs.Value;
+            _dwellClickMoveTolerancePixels = DwellClickSettingsConfig.Properties.MoveTolerancePixels.Value;
+            _dwellClickPostActionTolerancePixels = DwellClickSettingsConfig.Properties.PostActionTolerancePixels.Value;
+            _dwellClickDefaultAction = DwellClickSettingsConfig.Properties.DefaultAction.Value;
+            _dwellClickRevertToDefaultAfterAction = DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction.Value;
+
             int isEnabled = 0;
 
             Utilities.NativeMethods.SystemParametersInfo(Utilities.NativeMethods.SPI_GETCLIENTAREAANIMATION, 0, ref isEnabled, 0);
@@ -213,6 +236,22 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             else
             {
                 _isCursorWrapEnabled = GeneralSettingsConfig.Enabled.CursorWrap;
+            }
+
+            _dwellClickEnabledGpoRuleConfiguration = GPOWrapper.GetConfiguredDwellClickEnabledValue();
+            if (_dwellClickEnabledGpoRuleConfiguration == GpoRuleConfigured.Disabled || _dwellClickEnabledGpoRuleConfiguration == GpoRuleConfigured.Enabled)
+            {
+                // Get the enabled state from GPO.
+                _dwellClickEnabledStateIsGPOConfigured = true;
+                _isDwellClickEnabled = _dwellClickEnabledGpoRuleConfiguration == GpoRuleConfigured.Enabled;
+            }
+            else
+            {
+                // Clear the cached flag so a policy retracted between refreshes (Enabled/Disabled
+                // back to Not Configured) re-enables the toggle instead of leaving it marked as
+                // policy-managed.
+                _dwellClickEnabledStateIsGPOConfigured = false;
+                _isDwellClickEnabled = GeneralSettingsConfig.Enabled.DwellClick;
             }
         }
 
@@ -1424,6 +1463,117 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             SettingsUtils.SaveSettings(CursorWrapSettingsConfig.ToJsonString(), CursorWrapSettings.ModuleName);
         }
 
+        public bool IsDwellClickEnabled
+        {
+            get => _isDwellClickEnabled;
+            set
+            {
+                if (_dwellClickEnabledStateIsGPOConfigured)
+                {
+                    // If it's GPO configured, shouldn't be able to change this state.
+                    return;
+                }
+
+                if (_isDwellClickEnabled != value)
+                {
+                    _isDwellClickEnabled = value;
+
+                    GeneralSettingsConfig.Enabled.DwellClick = value;
+                    OnPropertyChanged(nameof(IsDwellClickEnabled));
+
+                    OutGoingGeneralSettings outgoing = new OutGoingGeneralSettings(GeneralSettingsConfig);
+                    SendConfigMSG(outgoing.ToString());
+
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool IsDwellClickEnabledGpoConfigured
+        {
+            get => _dwellClickEnabledStateIsGPOConfigured;
+        }
+
+        public int DwellClickDwellTimeMs
+        {
+            get => _dwellClickDwellTimeMs;
+            set
+            {
+                if (value != _dwellClickDwellTimeMs)
+                {
+                    _dwellClickDwellTimeMs = value;
+                    DwellClickSettingsConfig.Properties.DwellTimeMs.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickMoveTolerancePixels
+        {
+            get => _dwellClickMoveTolerancePixels;
+            set
+            {
+                if (value != _dwellClickMoveTolerancePixels)
+                {
+                    _dwellClickMoveTolerancePixels = value;
+                    DwellClickSettingsConfig.Properties.MoveTolerancePixels.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickPostActionTolerancePixels
+        {
+            get => _dwellClickPostActionTolerancePixels;
+            set
+            {
+                if (value != _dwellClickPostActionTolerancePixels)
+                {
+                    _dwellClickPostActionTolerancePixels = value;
+                    DwellClickSettingsConfig.Properties.PostActionTolerancePixels.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickDefaultAction
+        {
+            get => _dwellClickDefaultAction;
+            set
+            {
+                if (value != _dwellClickDefaultAction)
+                {
+                    _dwellClickDefaultAction = value;
+                    DwellClickSettingsConfig.Properties.DefaultAction.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickRevertToDefaultAfterAction
+        {
+            get => _dwellClickRevertToDefaultAfterAction;
+            set
+            {
+                if (value != _dwellClickRevertToDefaultAfterAction)
+                {
+                    _dwellClickRevertToDefaultAfterAction = value;
+                    DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public void NotifyDwellClickPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            OnPropertyChanged(propertyName);
+
+            SndDwellClickSettings outsettings = new SndDwellClickSettings(DwellClickSettingsConfig);
+            SndModuleSettings<SndDwellClickSettings> ipcMessage = new SndModuleSettings<SndDwellClickSettings>(outsettings);
+            SendConfigMSG(ipcMessage.ToJsonString());
+            SettingsUtils.SaveSettings(DwellClickSettingsConfig.ToJsonString(), DwellClickSettings.ModuleName);
+        }
+
         public void RefreshEnabledState()
         {
             InitializeEnabledValues();
@@ -1434,6 +1584,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             OnPropertyChanged(nameof(IsMouseJumpEnabled));
             OnPropertyChanged(nameof(IsMousePointerCrosshairsEnabled));
             OnPropertyChanged(nameof(IsCursorWrapEnabled));
+            OnPropertyChanged(nameof(IsDwellClickEnabled));
         }
 
         private Func<string, int> SendConfigMSG { get; }
@@ -1503,5 +1654,14 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private int _cursorWrapWrapMode; // 0=Both, 1=VerticalOnly, 2=HorizontalOnly
         private int _cursorWrapActivationMode; // 0=Always, 1=HoldingCtrl (wraps only while held), 2=HoldingShift (wraps only while held)
         private bool _cursorWrapDisableOnSingleMonitor; // Disable cursor wrap when only one monitor is connected
+
+        private GpoRuleConfigured _dwellClickEnabledGpoRuleConfiguration;
+        private bool _dwellClickEnabledStateIsGPOConfigured;
+        private bool _isDwellClickEnabled;
+        private int _dwellClickDwellTimeMs;
+        private int _dwellClickMoveTolerancePixels;
+        private int _dwellClickPostActionTolerancePixels;
+        private int _dwellClickDefaultAction; // matches dwellclick::DwellAction: 0=Left, 1=Right, 2=Double, 3=Middle, 4=Drag
+        private bool _dwellClickRevertToDefaultAfterAction;
     }
 }

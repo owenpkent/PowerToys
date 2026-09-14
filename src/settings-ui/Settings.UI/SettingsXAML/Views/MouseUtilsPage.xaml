@@ -16,6 +16,7 @@
     mc:Ignorable="d">
     <local:NavigablePage.Resources>
         <converters:IndexBitFieldToVisibilityConverter x:Key="IndexBitFieldToVisibilityConverter" />
+        <converters:MillisecondsLabelConverter x:Key="MillisecondsLabelConverter" />
         <tkconverters:BoolToVisibilityConverter
             x:Key="BoolToInvertedVisibilityConverter"
             FalseValue="Visible"
@@ -121,6 +122,83 @@
                             </tkcontrols:SettingsCard>
                             <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.IsCursorWrapEnabled, Mode=OneWay}">
                                 <CheckBox x:Uid="MouseUtils_CursorWrap_DisableOnSingleMonitor" IsChecked="{x:Bind ViewModel.CursorWrapDisableOnSingleMonitor, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                        </tkcontrols:SettingsExpander.Items>
+                    </tkcontrols:SettingsExpander>
+                </controls:SettingsGroup>
+
+                <controls:SettingsGroup x:Uid="MouseUtils_DwellClick" AutomationProperties.AutomationId="MouseUtils_DwellClickTestId">
+                    <controls:GPOInfoControl ShowWarning="{x:Bind ViewModel.IsDwellClickEnabledGpoConfigured, Mode=OneWay}">
+                        <tkcontrols:SettingsCard
+                            Name="MouseUtilsEnableDwellClick"
+                            x:Uid="MouseUtils_Enable_DwellClick"
+                            HeaderIcon="{ui:BitmapIcon Source=/Assets/Settings/Icons/DwellClick.png}"
+                            IsEnabled="{x:Bind ViewModel.IsDwellClickEnabledGpoConfigured, Mode=OneWay, Converter={StaticResource BoolNegationConverter}}">
+                            <ToggleSwitch x:Uid="ToggleSwitch" AutomationProperties.AutomationId="MouseUtils_DwellClickToggleId" IsOn="{x:Bind ViewModel.IsDwellClickEnabled, Mode=TwoWay}" />
+                        </tkcontrols:SettingsCard>
+                    </controls:GPOInfoControl>
+
+                    <tkcontrols:SettingsExpander
+                        Name="MouseUtilsDwellClickSettingsExpander"
+                        x:Uid="MouseUtils_DwellClick_Options"
+                        AutomationProperties.AutomationId="MouseUtils_DwellClickOptionsId"
+                        HeaderIcon="{ui:FontIcon Glyph=&#xE823;}"
+                        IsEnabled="{x:Bind ViewModel.IsDwellClickEnabled, Mode=OneWay}">
+                        <tkcontrols:SettingsExpander.Items>
+                            <tkcontrols:SettingsCard Name="MouseUtilsDwellClickDwellTime" x:Uid="MouseUtils_DwellClick_DwellTime">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <TextBlock
+                                        MinWidth="56"
+                                        VerticalAlignment="Center"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind ViewModel.DwellClickDwellTimeMs, Mode=OneWay, Converter={StaticResource MillisecondsLabelConverter}}"
+                                        TextAlignment="Right" />
+                                    <Slider
+                                        MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                        AutomationProperties.AutomationId="MouseUtils_DwellClickDwellTimeId"
+                                        LargeChange="400"
+                                        Maximum="5000"
+                                        Minimum="200"
+                                        SmallChange="100"
+                                        SnapsTo="StepValues"
+                                        StepFrequency="100"
+                                        ThumbToolTipValueConverter="{StaticResource MillisecondsLabelConverter}"
+                                        Value="{x:Bind ViewModel.DwellClickDwellTimeMs, Mode=TwoWay}" />
+                                </StackPanel>
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard Name="MouseUtilsDwellClickDefaultAction" x:Uid="MouseUtils_DwellClick_DefaultAction">
+                                <ComboBox MinWidth="{StaticResource SettingActionControlMinWidth}" AutomationProperties.AutomationId="MouseUtils_DwellClickDefaultActionId" SelectedIndex="{x:Bind Path=ViewModel.DwellClickDefaultAction, Mode=TwoWay}">
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_Action_LeftClick" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_Action_RightClick" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_Action_DoubleClick" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_Action_MiddleClick" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_Action_Drag" />
+                                </ComboBox>
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_RevertToDefault" AutomationProperties.AutomationId="MouseUtils_DwellClickRevertToDefaultId" IsChecked="{x:Bind ViewModel.DwellClickRevertToDefaultAfterAction, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard Name="MouseUtilsDwellClickMoveTolerance" x:Uid="MouseUtils_DwellClick_MoveTolerance">
+                                <NumberBox
+                                    MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                    AutomationProperties.AutomationId="MouseUtils_DwellClickMoveToleranceId"
+                                    LargeChange="5"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Compact"
+                                    Value="{x:Bind ViewModel.DwellClickMoveTolerancePixels, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard Name="MouseUtilsDwellClickPostActionTolerance" x:Uid="MouseUtils_DwellClick_PostActionTolerance">
+                                <NumberBox
+                                    MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                    AutomationProperties.AutomationId="MouseUtils_DwellClickPostActionToleranceId"
+                                    LargeChange="5"
+                                    Maximum="100"
+                                    Minimum="0"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Compact"
+                                    Value="{x:Bind ViewModel.DwellClickPostActionTolerancePixels, Mode=TwoWay}" />
                             </tkcontrols:SettingsCard>
                         </tkcontrols:SettingsExpander.Items>
                     </tkcontrols:SettingsExpander>

@@ -2826,6 +2826,67 @@ From there, simply click on one of the supported files in the File Explorer and 
   <data name="MouseUtils_CursorWrap.Description" xml:space="preserve">
     <value>Wrap the mouse cursor between monitor edges</value>
   </data>
+  <data name="MouseUtils_DwellClick.Header" xml:space="preserve">
+    <value>Dwell Click</value>
+    <comment>Dwell Click is the feature name: it clicks automatically when the pointer is held still.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick.Description" xml:space="preserve">
+    <value>Click automatically by holding the pointer still, for anyone who can move a pointer but cannot reliably press a button. The click lands wherever the pointer rests. Clicks cannot be sent to windows running as administrator.</value>
+    <comment>Pointer as in the mouse pointer/cursor.</comment>
+  </data>
+  <data name="MouseUtils_Enable_DwellClick.Header" xml:space="preserve">
+    <value>Dwell Click</value>
+    <comment>Dwell Click is the feature name.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_Options.Header" xml:space="preserve">
+    <value>Timing and actions</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Options.Description" xml:space="preserve">
+    <value>Tune how long a dwell takes, what it clicks, and how much pointer drift it tolerates.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_DwellTime.Header" xml:space="preserve">
+    <value>Dwell time (ms)</value>
+    <comment>ms is the abbreviation for milliseconds.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_DwellTime.Description" xml:space="preserve">
+    <value>How long the pointer must rest before the action fires</value>
+  </data>
+  <data name="MouseUtils_DwellClick_DefaultAction.Header" xml:space="preserve">
+    <value>Default action</value>
+  </data>
+  <data name="MouseUtils_DwellClick_DefaultAction.Description" xml:space="preserve">
+    <value>What a completed dwell does. Drag presses the left button on one dwell and releases it on the next, so you can move things without holding a button.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_LeftClick.Content" xml:space="preserve">
+    <value>Left click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_RightClick.Content" xml:space="preserve">
+    <value>Right click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_DoubleClick.Content" xml:space="preserve">
+    <value>Double-click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_MiddleClick.Content" xml:space="preserve">
+    <value>Middle click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_Drag.Content" xml:space="preserve">
+    <value>Drag</value>
+  </data>
+  <data name="MouseUtils_DwellClick_RevertToDefault.Content" xml:space="preserve">
+    <value>Return to the default action after each click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_MoveTolerance.Header" xml:space="preserve">
+    <value>Movement tolerance (pixels)</value>
+  </data>
+  <data name="MouseUtils_DwellClick_MoveTolerance.Description" xml:space="preserve">
+    <value>Pointer drift the countdown ignores. Larger values help if your hand trembles.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_PostActionTolerance.Header" xml:space="preserve">
+    <value>Post-action movement (pixels)</value>
+  </data>
+  <data name="MouseUtils_DwellClick_PostActionTolerance.Description" xml:space="preserve">
+    <value>How far the pointer must move after a click before a new dwell can begin. This stops a resting pointer from clicking the same spot again.</value>
+  </data>
   <data name="MouseUtils_CursorWrap_ActivationShortcut.Header" xml:space="preserve">
     <value>Activation and behavior</value>
   </data>
@@ -2882,6 +2943,14 @@ From there, simply click on one of the supported files in the File Explorer and 
   <data name="Oobe_MouseUtils_MouseJump_Description.Text" xml:space="preserve">
     <value>Jump the mouse pointer quickly to anywhere on your desktop.</value>
     <comment>Mouse as in the hardware peripheral.</comment>
+  </data>
+  <data name="Oobe_MouseUtils_DwellClick.Text" xml:space="preserve">
+    <value>Dwell Click</value>
+    <comment>Dwell Click is the feature name: it clicks automatically when the pointer is held still.</comment>
+  </data>
+  <data name="Oobe_MouseUtils_DwellClick_Description.Text" xml:space="preserve">
+    <value>Hold the pointer still to click automatically, with no button press needed. Choose the action, how long to hover, and how much drift to allow.</value>
+    <comment>Pointer as in the mouse pointer/cursor.</comment>
   </data>
   <data name="Launch_Run.Content" xml:space="preserve">
     <value>Open PowerToys Run</value>
