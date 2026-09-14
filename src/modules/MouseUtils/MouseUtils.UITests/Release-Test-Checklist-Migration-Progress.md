@@ -1,6 +1,6 @@
-## Mouse Utils
+﻿## Mouse Utils
 
-The migrated suite is [MouseUtils.UITests.Next](../MouseUtils.UITests.Next/) and currently contains 40 tests. Checked items have an automated effect-based assertion. Unchecked items require physical hardware or desktop state that the single-monitor Hyper-V profile cannot establish faithfully.
+The migrated suite is [MouseUtils.UITests.Next](../MouseUtils.UITests.Next/) and currently contains 44 tests. Checked items have an automated effect-based assertion. Unchecked items require physical hardware or desktop state that the single-monitor Hyper-V profile cannot establish faithfully.
 
 ### Find My Mouse
 
@@ -92,3 +92,12 @@ Automated by [MouseJumpTests.cs](../MouseUtils.UITests.Next/MouseJumpTests.cs).
 - [ ] Validate outer-edge polygons, adjacent inner edges, gaps, negative coordinates, and mixed DPI on multiple displays. Manual: requires representative multi-monitor layouts; use `CursorWrap/CursorWrapTests` for captured-layout simulation alongside hardware validation.
 
 Automated by [CursorWrapTests.cs](../MouseUtils.UITests.Next/CursorWrapTests.cs).
+
+### Dwell Click
+
+- [x] The Dwell Click settings group is visible; disabling the module disables its "Timing and actions" options and re-enabling restores them. The module has no separate worker process, window, or named event, so the enabled/disabled effect is verified by whether resting the pointer actually starts the seeded Drag action.
+- [x] The default action combo box and the revert-to-default checkbox change and persist, including across a restart.
+- [x] Dwell time (200-5000 ms) and both movement tolerances (0-100 px) boundary values persist, including across a restart.
+- [x] A dwell over the desktop completes a Drag action's press, observable in the system button state, and a second dwell after moving past the post-action tolerance releases it. Plain click actions are covered by the engine unit tests; their down+up pair is too transient to observe from a test.
+
+Automated by [DwellClickSettingsTests.cs](../MouseUtils.UITests.Next/DwellClickSettingsTests.cs).
