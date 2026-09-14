@@ -18,7 +18,7 @@ Mouse Utilities includes the following sub-modules:
 - **[Mouse Highlighter](mousehighlighter.md)**: Visualizes mouse clicks with customizable highlights
 - **[Mouse Jump](mousejump.md)**: Allows quick cursor movement to specific screen locations
 - **[Mouse Pointer Crosshairs](mousepointer.md)**: Displays crosshair lines that follow the mouse cursor
-- **[Dwell Click](dwellclick.md)** (in development): Clicks automatically when the pointer is held still, for users who can move a pointer but cannot reliably click it. Only the engine and its unit tests exist so far
+- **[Dwell Click](dwellclick.md)** (in development): Clicks automatically when the pointer is held still, for users who can move a pointer but cannot reliably click it. The engine, module DLL, settings, and tests are in place; the countdown indicator at the cursor is still to come
 
 ## Architecture
 
@@ -40,7 +40,7 @@ Most of the sub-modules (Find My Mouse, Mouse Highlighter, and Mouse Pointer Cro
 - [MouseJump](/src/modules/MouseUtils/MouseJump)
 - [MouseJumpUI](/src/modules/MouseUtils/MouseJumpUI)
 - [MouseJump.Common](/src/modules/MouseUtils/MouseJump.Common)
-- [DwellClick](/src/modules/MouseUtils/DwellClick) (engine only, no module DLL yet)
+- [DwellClick](/src/modules/MouseUtils/DwellClick)
 
 ## Community Contributors
 

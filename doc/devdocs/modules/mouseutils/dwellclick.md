@@ -1,9 +1,9 @@
 # Dwell Click
 
-> **Status: in development.** The engine, its unit tests, and the module DLL are in the repo today.
-> There is no Settings UI registration yet, so the module cannot be enabled from Settings; the
-> countdown indicator is also still to come. See [Not yet implemented](#not-yet-implemented) for
-> what remains.
+> **Status: in development.** The engine, its unit tests and fuzz target, the module DLL, the
+> Settings UI page, GPO policy, DSC support, and UI tests are all in the repo today. The countdown
+> indicator at the cursor is the main remaining piece. See
+> [Not yet implemented](#not-yet-implemented) for what remains.
 
 Dwell Click issues a mouse click automatically when the pointer is held still for a configurable
 time. It exists for people who can move a pointer but cannot reliably click it: tremor, limited fine
@@ -156,10 +156,19 @@ engine, following the Mouse Button Lock module closely:
   wait) releases a held drag button via `ReleaseDrag`.
 
 The module is registered in the runner's known-modules list, the solution, the ESRP signing list,
-and telemetry (`DwellClick_EnableDwellClick` on enable/disable, registered in
-DATA_AND_PRIVACY.md), and it reads the `ConfigureEnabledUtilityDwellClick` GPO policy. It is
-disabled by default and there is no Settings UI page yet, so enabling it currently requires
-hand-editing the general settings file.
+the installation verification script, the bug report tool's GPO dump, and telemetry
+(`DwellClick_EnableDwellClick` on enable/disable, registered in DATA_AND_PRIVACY.md). The
+`ConfigureEnabledUtilityDwellClick` GPO policy is defined in the ADMX/ADML and surfaced through
+`GPOWrapper`. It is disabled by default.
+
+## Settings
+
+The module lives on the Mouse Utilities settings page (`MouseUtilsPage.xaml`) with a toggle, a
+dwell-time slider (200 ms to 5 s; the module clamps hand-edited values to 100 ms - 60 s), a
+default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox, and
+number boxes for the two tolerances (0 - 100 px). `DwellClickProperties` must keep its defaults in
+sync with the engine and dllmain.cpp. DSC v3 can configure every property
+(`doc/dsc/modules/DwellClick.md`), and the module appears in OOBE's Mouse Utilities page.
 
 ## Defaults
 
@@ -195,6 +204,20 @@ cd src\modules\MouseUtils\DwellClick.UnitTests
 vstest.console.exe x64\Debug\tests\DwellClick\DwellClick.UnitTests.dll /Platform:x64
 ```
 
+Beyond the unit tests:
+
+- [DwellClick.FuzzingTest](/src/modules/MouseUtils/DwellClick.FuzzingTest) drives the engine with
+  arbitrary event sequences, ticks, coordinates, and settings under ASan + libFuzzer, mirroring
+  `MouseButtonLock.FuzzingTest`.
+- [DwellClickSettingsTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickSettingsTests.cs)
+  covers settings persistence and one live behavior: a Drag-action dwell's held button is the one
+  externally observable effect (`GetAsyncKeyState`), so the module's enabled/disabled state and the
+  two-dwell drag are asserted through it. The suite leans on an engine guarantee for its own
+  safety: settings changes and physical clicks lock the machine until the pointer moves, so
+  pattern-driven UIA interactions cannot fire stray dwells.
+- The DSC suite has a `DwellClick` module test
+  ([SettingsResourceDwellClickModuleTest.cs](/src/dsc/v3/PowerToys.DSC.UnitTests/SettingsResourceTests/SettingsResourceDwellClickModuleTest.cs)).
+
 ## Not yet implemented
 
 Still to build:
@@ -202,15 +225,14 @@ Still to build:
 - A countdown indicator at the cursor. This is not cosmetic: without visible feedback a user cannot
   tell when a click is about to land, and feedback design is tied directly to error rates in the
   dwell literature. Feedback should stay simple at short dwell times, where richer multi-level cues
-  were found confusing.
-- Action-selection UX. The engine already supports a settings dropdown, a hotkey cycle, or a floating
-  toolbar without changes. Post-dwell directional gestures, the GNOME alternative mode, would need
-  engine work.
-- Settings registration: `MouseUtilsPage.xaml` and its view model, `Settings.UI.Library` classes,
-  `ModuleType`, OOBE, and DSC. The native side reads the `ConfigureEnabledUtilityDwellClick` GPO
-  policy already, but the policy still needs its ADMX/ADML definitions and `GPOWrapper` entry.
-- A fuzz target over the engine, mirroring `MouseButtonLock.FuzzingTest`.
-- UI tests in `MouseUtils.UITests`.
+  were found confusing. The module's poll loop already receives the progress value each tick.
+- Action-selection UX beyond the settings dropdown: a hotkey cycle or a floating toolbar needs no
+  engine changes; post-dwell directional gestures, the GNOME alternative mode, would need engine
+  work.
+
+Command Palette is deliberately unwired, matching the Mouse Button Lock decision: the sibling
+CmdPal entries fire a module trigger event, and this module has no trigger event; activation is
+resting the pointer.
 
 ## Design provenance
 
