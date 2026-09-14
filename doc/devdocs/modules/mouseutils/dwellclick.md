@@ -1,7 +1,9 @@
 # Dwell Click
 
-> **Status: in development.** Only the engine and its unit tests are in the repo today. There is no
-> module DLL, settings, or UI yet. See [Not yet implemented](#not-yet-implemented) for what remains.
+> **Status: in development.** The engine, its unit tests, and the module DLL are in the repo today.
+> There is no Settings UI registration yet, so the module cannot be enabled from Settings; the
+> countdown indicator is also still to come. See [Not yet implemented](#not-yet-implemented) for
+> what remains.
 
 Dwell Click issues a mouse click automatically when the pointer is held still for a configurable
 time. It exists for people who can move a pointer but cannot reliably click it: tremor, limited fine
@@ -10,13 +12,15 @@ motor control, RSI, or a pointer driven by a head tracker, eye tracker, joystick
 ## Implementation
 
 The decision logic lives in a pure, header-only state machine with no Win32 dependency, so it can be
-unit tested deterministically. The eventual module layer stays a thin wrapper: it samples the cursor,
-supplies a monotonic tick, and performs the injections the engine asks for.
+unit tested deterministically. The module layer stays a thin wrapper: it feeds the engine pointer
+events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
 - [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine
 - [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) - 30 unit tests
+- [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
+  (`PowertoyModuleIface` plus the Win32 adapter)
 
 ### Why the engine is Win32-free
 
@@ -125,6 +129,38 @@ The engine stays defined for any input rather than trusting its caller:
   the pointer happens to rest there. It does *not* consume the chosen action, since the user asked
   for a click and never got one.
 
+## The module layer
+
+[dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) is the Win32 adapter around the
+engine, following the Mouse Button Lock module closely:
+
+- **One dedicated thread** owns a `WH_MOUSE_LL` hook and a poll loop. The hook feeds the engine
+  `OnMove` for every pointer move and `OnPhysicalClick` for every physical button-down; the loop
+  wakes every 15 ms (`MsgWaitForMultipleObjects` timeout) to pump messages and call `Poll`, which
+  is what advances a countdown while the pointer is at rest and no messages arrive.
+- **Injection is a tagged `SendInput`.** Every synthetic event carries a `dwExtraInfo` tag so the
+  hook can ignore the module's own clicks; without that, every fired click would immediately
+  re-lock the machine against its own echo. Only the module's own tag is filtered. `LLMHF_INJECTED`
+  is deliberately not: input injected by other software (a head or eye tracker, remote desktop) is
+  exactly the input this module serves, so injected moves arm the machine and injected clicks lock
+  it, the same as their physical counterparts.
+- **The engine stays single-threaded.** All engine calls happen on the hook thread while it runs.
+  The runner thread touches the engine only before the thread starts (`enable` seeds the pointer
+  position and calls `ResetTransient`) or after it joins (`disable`). A live settings change
+  (`set_config`) raises an atomic flag that the poll loop consumes into `LockUntilMove`.
+- **Settings are clamped on read.** The dwell time is clamped to 100 ms - 60 s (below 100 ms every
+  rest becomes a click, the exact Midas failure the engine is built to avoid), tolerances to
+  0 - 10000 px, and an unknown `default_action` value falls back to `LeftClick` rather than
+  clamping to whatever enum sits at the range edge.
+- **Shutdown never strands a drag.** The hook thread's exit path (disable, destroy, or a failed
+  wait) releases a held drag button via `ReleaseDrag`.
+
+The module is registered in the runner's known-modules list, the solution, the ESRP signing list,
+and telemetry (`DwellClick_EnableDwellClick` on enable/disable, registered in
+DATA_AND_PRIVACY.md), and it reads the `ConfigureEnabledUtilityDwellClick` GPO policy. It is
+disabled by default and there is no Settings UI page yet, so enabling it currently requires
+hand-editing the general settings file.
+
 ## Defaults
 
 | Setting | Default | Source |
@@ -161,10 +197,8 @@ vstest.console.exe x64\Debug\tests\DwellClick\DwellClick.UnitTests.dll /Platform
 
 ## Not yet implemented
 
-The engine is only the decision layer. Still to build:
+Still to build:
 
-- The module DLL (`PowertoyModuleIface`): cursor sampling thread, a `SendInput` injector, settings
-  load and parse, and telemetry. Mouse Button Lock is the closest template.
 - A countdown indicator at the cursor. This is not cosmetic: without visible feedback a user cannot
   tell when a click is about to land, and feedback design is tied directly to error rates in the
   dwell literature. Feedback should stay simple at short dwell times, where richer multi-level cues
@@ -173,7 +207,8 @@ The engine is only the decision layer. Still to build:
   toolbar without changes. Post-dwell directional gestures, the GNOME alternative mode, would need
   engine work.
 - Settings registration: `MouseUtilsPage.xaml` and its view model, `Settings.UI.Library` classes,
-  `ModuleType`, GPO policy and ADMX, OOBE, and DSC.
+  `ModuleType`, OOBE, and DSC. The native side reads the `ConfigureEnabledUtilityDwellClick` GPO
+  policy already, but the policy still needs its ADMX/ADML definitions and `GPOWrapper` entry.
 - A fuzz target over the engine, mirroring `MouseButtonLock.FuzzingTest`.
 - UI tests in `MouseUtils.UITests`.
 

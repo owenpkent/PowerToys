@@ -286,7 +286,7 @@ namespace dwellclick
         // this never triggers, but the engine must stay defined for any input and the fuzz target
         // drives the full coordinate range. double holds these magnitudes without overflow, and its
         // precision is far finer than a pixel tolerance needs.
-        static bool MovedBeyond(PointL pt, PointL anchor, int pixels)
+        static constexpr bool MovedBeyond(PointL pt, PointL anchor, int pixels)
         {
             const double dx = static_cast<double>(pt.x) - static_cast<double>(anchor.x);
             const double dy = static_cast<double>(pt.y) - static_cast<double>(anchor.y);
@@ -296,7 +296,7 @@ namespace dwellclick
             return dx * dx + dy * dy > threshold;
         }
 
-        static int Clamp0(int value)
+        static constexpr int Clamp0(int value)
         {
             return value < 0 ? 0 : value;
         }

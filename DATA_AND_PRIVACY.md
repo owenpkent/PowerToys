@@ -167,6 +167,12 @@ Thank you for using PowerToys!
 | --- | --- |
 | Microsoft.PowerToys.CursorWrap_EnableCursorWrap | Triggered when Cursor Wrap is enabled or disabled. |
 
+### Dwell Click
+
+| Event Name | Description |
+| --- | --- |
+| Microsoft.PowerToys.DwellClick_EnableDwellClick | Triggered when Dwell Click is enabled or disabled. |
+
 ### Environment Variables
 
 | Event Name | Description |
