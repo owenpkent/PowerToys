@@ -18,11 +18,11 @@ events and a monotonic tick, and performs the injections the engine asks for.
 ### Key Files
 
 - [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine
-- [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) - 30 unit tests
+- [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) - 35 unit tests
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
 - [DwellClickToolbar.h](/src/modules/MouseUtils/DwellClick/DwellClickToolbar.h) - the toolbar's
-  Win32-free state machine, tested by
+  Win32-free state machine, with 20 tests in
   [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp)
 - [DwellClickOverlay.cpp](/src/modules/MouseUtils/DwellClick/DwellClickOverlay.cpp) - the layered
   windows for the countdown ring and the action toolbar
@@ -216,8 +216,10 @@ pointer-attached countdown with an on-screen action menu:
   the engine stays single-threaded. Glyphs are drawn as pictograms (no text), so the overlay
   needs no localized resources.
 
-Both surfaces can be turned off in Settings (`show_toolbar`, `show_countdown`), and the toolbar
-edge is `toolbar_side`. The toolbar currently docks to the primary monitor.
+Both surfaces can be turned off in Settings (`show_toolbar`, `show_countdown`), the toolbar edge
+is `toolbar_side`, and `overlay_size` scales the buttons and the ring together (small / medium /
+large; medium is the default because dwell targets obey Fitts's law). The toolbar currently docks
+to the primary monitor.
 
 ## Defaults
 
@@ -229,10 +231,21 @@ edge is `toolbar_side`. The toolbar currently docks to the primary monitor.
 | `defaultAction` | `LeftClick` | Universal across surveyed products. |
 | `revertToDefaultAfterAction` | `true` | GNOME Hover Click and Dwell Clicker 2 behavior. |
 
+The adapter and overlay settings (not part of the engine; `DwellClickProperties` and dllmain.cpp
+must agree on all of these):
+
+| Setting | Default | Notes |
+|---|---|---|
+| `show_toolbar` | `true` | The toolbar is the action-selection surface; hiding it leaves only the default action. |
+| `toolbar_side` | `0` (left edge) | |
+| `show_countdown` | `true` | |
+| `overlay_size` | `1` (medium, 56 px buttons) | 0 = 40 px, 2 = 72 px; the countdown ring scales to match. |
+| `toolbar_button_*` | all `true` except `toolbar_button_middle_click` | Eight booleans choosing the action buttons; collapse and pause are always shown. |
+
 ## Testing
 
-[EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) has 30 tests in six
-classes, using a recording fake injector and an explicit tick:
+[EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) has 35 tests in
+seven classes, using a recording fake injector and an explicit tick:
 
 - `DwellCountdown` - starts locked, tolerance boundaries, firing at the threshold, progress
   reporting, and the degenerate inputs above
@@ -244,6 +257,13 @@ classes, using a recording fake injector and an explicit tick:
 - `PauseAndSuppression` - pause, resume, pause mid-drag, physical-click suppression, and the
   live-settings-change lock
 - `InjectionFailure` - failures are reported, not retried per poll, and do not consume the action
+- `ScrollActions` - auto-repeat while resting, no revert, movement re-anchoring, and a failed
+  scroll locking instead of retrying
+
+[ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
+20 tests over the toolbar model in four classes: layout and hit-testing, the configurable button
+set and size, the hover dwell (activation, jitter, re-arm, tick wrap), and physical clicks plus
+the collapse handle.
 
 Build and run:
 
