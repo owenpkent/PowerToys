@@ -626,6 +626,9 @@
   </Folder>
   <Folder Name="/modules/MouseUtils/Tests/">
     <Project Path="src/modules/MouseUtils/DwellClick.UnitTests/DwellClick.UnitTests.vcxproj" Id="f2d2a03b-ddc8-49e1-b541-bc4db1252240" />
+    <Project Path="src/modules/MouseUtils/DwellClick.FuzzingTest/DwellClick.FuzzingTest.vcxproj" Id="e3658b20-6a05-4d00-9993-32d805695ce0">
+      <Build Solution="*|ARM64" Project="false" />
+    </Project>
     <Project Path="src/modules/MouseUtils/MouseJump.Common.UnitTests/MouseJump.Common.UnitTests.csproj">
       <Platform Solution="*|ARM64" Project="ARM64" />
       <Platform Solution="*|x64" Project="x64" />
