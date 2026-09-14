@@ -10,6 +10,7 @@
 #include "trace.h"
 #include "resource.h"
 #include "DwellClickCore.h"
+#include "DwellClickOverlay.h"
 
 #include <atomic>
 #include <cmath>
@@ -22,7 +23,9 @@
 // DwellClickCore.h (Win32-free and unit tested); this file is the thin Win32 adapter around it:
 // a low-level mouse hook feeds the engine pointer moves and physical clicks, a polling loop on
 // the same thread advances the countdown, and a SendInput wrapper performs the injections the
-// engine asks for.
+// engine asks for. The on-screen surfaces (a countdown ring at the pointer and a dwell-to-select
+// action toolbar, modeled on Ease Mouse and OpenMouse) live in DwellClickOverlay.cpp, with their
+// decisions in the Win32-free DwellClickToolbar.h.
 //
 // The hook lives on a dedicated thread with its own message pump, matching the other Mouse
 // Utilities (see MouseButtonLock and CursorWrap). All engine calls happen on that thread while
@@ -58,6 +61,9 @@ namespace
     const wchar_t JSON_KEY_POST_ACTION_TOLERANCE_PIXELS[] = L"post_action_tolerance_pixels";
     const wchar_t JSON_KEY_DEFAULT_ACTION[] = L"default_action";
     const wchar_t JSON_KEY_REVERT_TO_DEFAULT_AFTER_ACTION[] = L"revert_to_default_after_action";
+    const wchar_t JSON_KEY_SHOW_TOOLBAR[] = L"show_toolbar";
+    const wchar_t JSON_KEY_TOOLBAR_SIDE[] = L"toolbar_side";
+    const wchar_t JSON_KEY_SHOW_COUNTDOWN[] = L"show_countdown";
 
     // dwExtraInfo tag stamped on every event we inject via SendInput, so the hook ignores our
     // own synthetic clicks: a dwell-fired click must not register as the user clicking
@@ -170,6 +176,9 @@ private:
     std::atomic<int> m_postActionTolerancePixels{ DEFAULT_TOLERANCE_PIXELS };
     std::atomic<int> m_defaultAction{ static_cast<int>(dwellclick::DwellAction::LeftClick) };
     std::atomic<bool> m_revertToDefaultAfterAction{ true };
+    std::atomic<bool> m_showToolbar{ true };
+    std::atomic<int> m_toolbarSide{ 0 };
+    std::atomic<bool> m_showCountdown{ true };
 
     // The engine is not thread-safe, so set_config (runner thread) never touches it directly.
     // It raises this flag instead, and the hook thread's poll loop consumes it and applies the
@@ -180,6 +189,10 @@ private:
     // reference to it in its constructor).
     WinInjector m_injector;
     dwellclick::Engine m_engine{ m_injector };
+
+    // The on-screen surfaces (countdown ring + action toolbar). Created, driven, and
+    // destroyed exclusively on the hook thread, like every other engine interaction.
+    dwellclick::Overlay m_overlay;
 
     // Hook thread + lifecycle.
     HHOOK m_mouseHook = nullptr;
@@ -193,6 +206,7 @@ private:
 
     void HookThreadMain();
     void HandleMouseMessage(WPARAM wParam, const MSLLHOOKSTRUCT* data);
+    void HandleToolbarCommand(dwellclick::ToolbarCommand command);
 
     static LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam);
 
@@ -411,6 +425,9 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
     readInt(JSON_KEY_MOVE_TOLERANCE_PIXELS, m_moveTolerancePixels, 0, MAX_TOLERANCE_PIXELS);
     readInt(JSON_KEY_POST_ACTION_TOLERANCE_PIXELS, m_postActionTolerancePixels, 0, MAX_TOLERANCE_PIXELS);
     readBool(JSON_KEY_REVERT_TO_DEFAULT_AFTER_ACTION, m_revertToDefaultAfterAction);
+    readBool(JSON_KEY_SHOW_TOOLBAR, m_showToolbar);
+    readInt(JSON_KEY_TOOLBAR_SIDE, m_toolbarSide, 0, 1);
+    readBool(JSON_KEY_SHOW_COUNTDOWN, m_showCountdown);
 
     // The action is an enum stored as a number. An unknown value (a future action arriving via
     // a hand-edited or newer settings file) falls back to LeftClick, the least surprising
@@ -458,6 +475,12 @@ void DwellClick::HookThreadMain()
         Logger::error(L"Failed to install DwellClick mouse hook, error: {}", GetLastError());
     }
 
+    // The overlay lives on this thread so its window procs, the poll loop, and the engine
+    // never race. The module keeps working (without visuals) if creation fails.
+    const bool overlayCreated = m_overlay.Create(
+        reinterpret_cast<HINSTANCE>(&__ImageBase),
+        [this](dwellclick::ToolbarCommand command) { HandleToolbarCommand(command); });
+
     HANDLE handles[1] = { m_terminateEvent };
     while (m_listening)
     {
@@ -487,11 +510,41 @@ void DwellClick::HookThreadMain()
             m_engine.LockUntilMove();
         }
 
-        // The PollResult (progress, what fired) is unused for now; the countdown indicator
-        // will consume it when it lands. Injection failures are logged by the injector.
-        m_engine.Poll(GetTickCount64(), SettingsSnapshot());
+        const dwellclick::Settings snapshot = SettingsSnapshot();
+        const uint64_t tick = GetTickCount64();
+        POINT cursor{};
+        GetCursorPos(&cursor);
+
+        if (overlayCreated)
+        {
+            m_overlay.ApplySettings({ m_showToolbar.load(), m_toolbarSide.load(), m_showCountdown.load() });
+            m_overlay.TickToolbar(cursor, tick, snapshot.dwellTimeMs);
+        }
+
+        // While the pointer is over the toolbar, the toolbar's own hover dwell is in charge
+        // and the engine stays locked, so a dwell there selects a button instead of firing
+        // the current action onto the toolbar. This is also what keeps the resume button
+        // reachable while paused: pause stops the engine, never the toolbar.
+        const bool overToolbar = overlayCreated && m_overlay.IsPointOverToolbar(cursor);
+        if (overToolbar)
+        {
+            m_engine.LockUntilMove();
+        }
+
+        const dwellclick::PollResult result = m_engine.Poll(tick, snapshot);
+
+        if (overlayCreated)
+        {
+            // Injection failures are logged by the injector; progress drives the ring.
+            m_overlay.UpdateIndicator(cursor, result.progress, !overToolbar);
+            m_overlay.SetToolbarState({ m_engine.NextAction(), m_engine.IsPaused(), m_engine.IsDragging() });
+        }
     }
 
+    if (overlayCreated)
+    {
+        m_overlay.Destroy();
+    }
     if (m_mouseHook)
     {
         UnhookWindowsHookEx(m_mouseHook);
@@ -502,6 +555,50 @@ void DwellClick::HookThreadMain()
     if (m_engine.ReleaseDrag())
     {
         Logger::info(L"Released a drag that was in progress when DwellClick stopped.");
+    }
+}
+
+// Runs on the hook thread (toolbar window procs and the poll loop both live there), so
+// engine calls need no synchronization.
+void DwellClick::HandleToolbarCommand(dwellclick::ToolbarCommand command)
+{
+    using dwellclick::DwellAction;
+    using dwellclick::ToolbarCommand;
+
+    // Selecting a new action mid-drag abandons the gesture: release the held button first
+    // so nothing is left stuck, then arm the choice.
+    const auto select = [this](DwellAction action) {
+        if (m_engine.IsDragging())
+        {
+            m_engine.ReleaseDrag();
+        }
+        m_engine.SetNextAction(action);
+    };
+
+    switch (command)
+    {
+    case ToolbarCommand::TogglePause:
+        m_engine.SetPaused(!m_engine.IsPaused());
+        break;
+    case ToolbarCommand::SelectLeftClick:
+        select(DwellAction::LeftClick);
+        break;
+    case ToolbarCommand::SelectDoubleClick:
+        select(DwellAction::DoubleClick);
+        break;
+    case ToolbarCommand::SelectRightClick:
+        select(DwellAction::RightClick);
+        break;
+    case ToolbarCommand::SelectMiddleClick:
+        select(DwellAction::MiddleClick);
+        break;
+    case ToolbarCommand::SelectDrag:
+        select(DwellAction::Drag);
+        break;
+    case ToolbarCommand::ToggleCollapse:
+    default:
+        // Collapse is handled inside the overlay; nothing reaches the engine.
+        break;
     }
 }
 

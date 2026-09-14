@@ -22,6 +22,7 @@
 #include <cstdint>
 
 #include "DwellClickCore.h"
+#include "DwellClickToolbar.h"
 
 using namespace dwellclick;
 
@@ -80,6 +81,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
     CountingInjector injector;
     Engine engine(injector);
 
+    // The toolbar model is user-input-driven state too, so the same adversarial stream of
+    // points, ticks, and dwell times runs through it alongside the engine.
+    ToolbarModel toolbar;
+
     Settings settings; // shipping defaults; mutated below from fuzzer bytes
     uint64_t tick = 0;
 
@@ -119,6 +124,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
         const long x = static_cast<long>(static_cast<int32_t>(r.u32()));
         const long y = static_cast<long>(static_cast<int32_t>(r.u32()));
         const PointL pt{ x, y };
+
+        if (op & 0x80u)
+        {
+            const auto command = toolbar.OnPointer(pt, (op & 0x10u) != 0u, tick, settings.dwellTimeMs);
+            if (command && *command == ToolbarCommand::ToggleCollapse)
+            {
+                toolbar.SetCollapsed(!toolbar.IsCollapsed());
+            }
+            if (op == 0xFFu)
+            {
+                (void)toolbar.OnClick(pt);
+            }
+            (void)toolbar.HoverProgress(tick, settings.dwellTimeMs);
+            (void)toolbar.HitTest(pt);
+        }
 
         switch (op & 0x07u)
         {

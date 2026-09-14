@@ -80,15 +80,21 @@
     <ClCompile>
       <AdditionalIncludeDirectories>$(RepoRoot)src\common\inc;$(RepoRoot)src\common\Telemetry;..\..\;$(RepoRoot)src\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
+    <Link>
+      <AdditionalDependencies>gdiplus.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="trace.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="DwellClickCore.h" />
+    <ClInclude Include="DwellClickToolbar.h" />
+    <ClInclude Include="DwellClickOverlay.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="DwellClickOverlay.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(UsePrecompiledHeaders)' != 'false'">Create</PrecompiledHeader>
     </ClCompile>
