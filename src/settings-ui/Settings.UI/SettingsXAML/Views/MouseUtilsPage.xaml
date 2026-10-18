@@ -164,6 +164,7 @@
                                     <TextBlock
                                         MinWidth="56"
                                         VerticalAlignment="Center"
+                                        AutomationProperties.AutomationId="MouseUtils_DwellClickDwellTimeLabelId"
                                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                         Text="{x:Bind ViewModel.DwellClickDwellTimeMs, Mode=OneWay, Converter={StaticResource MillisecondsLabelConverter}}"
                                         TextAlignment="Right" />

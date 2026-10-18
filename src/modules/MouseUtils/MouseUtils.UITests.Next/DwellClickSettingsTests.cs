@@ -18,6 +18,7 @@ public class DwellClickSettingsTests : UITestBase
     private const string ModuleToggleId = "MouseUtils_DwellClickToggleId";
     private const string OptionsExpanderId = "MouseUtils_DwellClickOptionsId";
     private const string DwellTimeId = "MouseUtils_DwellClickDwellTimeId";
+    private const string DwellTimeLabelId = "MouseUtils_DwellClickDwellTimeLabelId";
     private const string DefaultActionId = "MouseUtils_DwellClickDefaultActionId";
     private const string RevertToDefaultId = "MouseUtils_DwellClickRevertToDefaultId";
     private const string MoveToleranceId = "MouseUtils_DwellClickMoveToleranceId";
@@ -150,7 +151,7 @@ public class DwellClickSettingsTests : UITestBase
 
         AssertCheckBoxState(RevertToDefaultId, expectedChecked: true);
 
-        Session.Find<ComboBox>(By.AccessibilityId(DefaultActionId), 5_000).Select("Right click");
+        SelectComboItem(DefaultActionId, "Right click");
         AssertPersistedInt("default_action", 1);
 
         SetCheckBox(RevertToDefaultId, check: false);
@@ -158,9 +159,9 @@ public class DwellClickSettingsTests : UITestBase
 
         // Overlay options. Everything toolbar-related is set before hiding the toolbar,
         // because hiding it disables those controls (mirroring the IsEnabled bindings).
-        Session.Find<ComboBox>(By.AccessibilityId(ToolbarSideId), 5_000).Select("Right edge");
+        SelectComboItem(ToolbarSideId, "Right edge");
         AssertPersistedInt("toolbar_side", 1);
-        Session.Find<ComboBox>(By.AccessibilityId(OverlaySizeId), 5_000).Select("Large");
+        SelectComboItem(OverlaySizeId, "Large");
         AssertPersistedInt("overlay_size", 2);
         SetCheckBox(ToolbarButtonMiddleClickId, check: true);
         AssertPersistedBool("toolbar_button_middle_click", true);
@@ -210,11 +211,13 @@ public class DwellClickSettingsTests : UITestBase
 
         RestartScope();
         OpenOptions();
+
+        // winappcli cannot read a WinUI Slider's RangeValue (get-value finds no value), so the
+        // reload is observed through the label beside the slider, which binds the same property.
         Assert.AreEqual(
-            5000d,
-            Session.Find<Slider>(By.AccessibilityId(DwellTimeId), 5_000).Value,
-            0.01,
-            "Dwell time slider did not reflect its persisted maximum value after restart.");
+            "5000 ms",
+            Session.Find<TextBlock>(By.AccessibilityId(DwellTimeLabelId), 5_000).Text,
+            "Dwell time did not reflect its persisted maximum value after restart.");
         AssertPersistedInt("dwell_time_ms", 5000);
         AssertPersistedInt("move_tolerance_pixels", 100);
         AssertPersistedInt("post_action_tolerance_pixels", 100);
@@ -228,25 +231,15 @@ public class DwellClickSettingsTests : UITestBase
         MouseUtilsTestHelper.NavigateToMouseUtilities(this);
         MouseUtilsTestHelper.SetModuleEnabled(this, ModuleToggleId, true);
 
-        // First dwell presses and holds the left button. Waiting for this first press also
-        // confirms the hook and poll thread are live.
+        // The first full gesture: a dwell presses and holds the left button, and a second dwell a
+        // short move away releases it (RestAndObservePress asserts the release). Waiting for it
+        // also confirms the hook and poll thread are live.
         AssertDwellPressOnceSettled(expectPress: true);
 
-        // The button is now held mid-drag. Moving past the post-action tolerance and resting
-        // again completes the gesture: the second dwell releases the button.
-        WindowHelper.MinimizeWindow(new IntPtr(Session.WindowHandle));
-        try
-        {
-            MouseHelper.MoveBy(60, 0, steps: 6);
-            Thread.Sleep(FastDwellTimeMs + DwellSlackMs);
-            Assert.IsTrue(
-                WaitForLeftButtonReleased(2_000),
-                "The second dwell did not release the drag's held left button.");
-        }
-        finally
-        {
-            Session.EnsureForeground();
-        }
+        // A completed drag must leave the engine ready for the next one, so repeat the gesture
+        // once the module is known to be live. It again asserts the release, so no button is
+        // left held.
+        Assert.IsTrue(RestAndObservePress(), "A dwell after a completed drag did not start a new drag.");
     }
 
     private void OpenOptions()
@@ -269,8 +262,19 @@ public class DwellClickSettingsTests : UITestBase
         Assert.IsTrue(Session.Has(By.AccessibilityId(ShowCountdownId), 5_000), "Show countdown checkbox was not available.");
     }
 
+    // Select and SetCheck click with the real mouse at the control's UIA bounds. Below the fold
+    // those bounds are off the window (UIA still reports IsOffscreen=false there), so the click
+    // would land elsewhere; scroll the control into view first.
+    private void SelectComboItem(string accessibilityId, string itemName)
+    {
+        var comboBox = Session.Find<ComboBox>(By.AccessibilityId(accessibilityId), 5_000);
+        comboBox.ScrollIntoView();
+        Session.Find<ComboBox>(By.AccessibilityId(accessibilityId), 5_000).Select(itemName);
+    }
+
     private void SetCheckBox(string accessibilityId, bool check)
     {
+        Session.Find<CheckBox>(By.AccessibilityId(accessibilityId), 5_000).ScrollIntoView();
         var checkBox = Session.Find<CheckBox>(By.AccessibilityId(accessibilityId), 5_000);
         checkBox.SetCheck(check);
         Assert.AreEqual(check, checkBox.IsChecked, $"{accessibilityId} did not reach the expected checked state.");
@@ -361,11 +365,16 @@ public class DwellClickSettingsTests : UITestBase
             actual => actual == expected,
             timeoutMS: 10_000,
             requiredConsecutiveMatches: 2,
-            pollIntervalMS: 200);
+            pollIntervalMS: 200,
+            shouldRetryException: IsTransientSettingsReadFailure);
         Assert.IsTrue(
             result.Succeeded,
             $"{propertyName} did not persist as {expected}. Last observed value: {result.LastObservation}.");
     }
+
+    // Settings rewrites settings.json on every change, so a poll can meet the file locked mid
+    // write (IOException) or half written (JsonException); the next poll reads it whole.
+    private static bool IsTransientSettingsReadFailure(Exception ex) => ex is IOException or JsonException;
 
     private static void AssertPersistedInt(string propertyName, int expected)
     {
@@ -374,7 +383,8 @@ public class DwellClickSettingsTests : UITestBase
             actual => actual == expected,
             timeoutMS: 10_000,
             requiredConsecutiveMatches: 2,
-            pollIntervalMS: 200);
+            pollIntervalMS: 200,
+            shouldRetryException: IsTransientSettingsReadFailure);
         Assert.IsTrue(
             result.Succeeded,
             $"{propertyName} did not persist as {expected}. Last observed value: {result.LastObservation}.");
