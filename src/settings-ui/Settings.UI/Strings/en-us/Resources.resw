@@ -2976,6 +2976,32 @@ From there, simply click on one of the supported files in the File Explorer and 
   <data name="MouseUtils_DwellClick_ToolbarSide_Right.Content" xml:space="preserve">
     <value>Right edge</value>
   </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide_Top.Content" xml:space="preserve">
+    <value>Top edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide_Bottom.Content" xml:space="preserve">
+    <value>Bottom edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarStyle.Header" xml:space="preserve">
+    <value>Toolbar style</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarStyle.Description" xml:space="preserve">
+    <value>A bar docked to the screen edge, or a single button that opens a large menu of actions in the middle of the screen. The large menu closes after you choose an action.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarStyle_Docked.Content" xml:space="preserve">
+    <value>Docked bar</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarStyle_Floating.Content" xml:space="preserve">
+    <value>Floating button with large menu</value>
+    <comment>A single small button on the screen edge. Resting the pointer on it opens a large menu of actions in the middle of the screen.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarPosition.Header" xml:space="preserve">
+    <value>Position along the edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarPosition.Description" xml:space="preserve">
+    <value>Where the toolbar sits on its edge, from the start (0%) to the end (100%). Move it away from content you need to reach.</value>
+    <comment>The start of the left or right edge is the top. The start of the top or bottom edge is the left.</comment>
+  </data>
   <data name="MouseUtils_DwellClick_ShowCountdown.Content" xml:space="preserve">
     <value>Show the countdown ring at the pointer</value>
     <comment>The ring fills up while the pointer rests, showing when the click will land.</comment>
@@ -2999,7 +3025,7 @@ From there, simply click on one of the supported files in the File Explorer and 
     <value>Toolbar buttons</value>
   </data>
   <data name="MouseUtils_DwellClick_ToolbarButtons.Description" xml:space="preserve">
-    <value>Choose which actions appear on the toolbar. Pause and the collapse handle are always shown. Scroll keeps scrolling while the pointer rests and stays selected until you choose another action.</value>
+    <value>Choose which actions appear on the toolbar. Pause and the collapse handle are always shown. Scroll and zoom keep repeating while the pointer rests and stay selected until you choose another action. Back, Start menu, Show desktop, Task view, and Notifications act at once in the window you were using.</value>
   </data>
   <data name="MouseUtils_DwellClick_ToolbarButton_LeftClick.Content" xml:space="preserve">
     <value>Left click</value>
@@ -3021,6 +3047,38 @@ From there, simply click on one of the supported files in the File Explorer and 
   </data>
   <data name="MouseUtils_DwellClick_ToolbarButton_ScrollDown.Content" xml:space="preserve">
     <value>Scroll down</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ScrollLeft.Content" xml:space="preserve">
+    <value>Scroll left</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ScrollRight.Content" xml:space="preserve">
+    <value>Scroll right</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ZoomIn.Content" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ZoomOut.Content" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_Back.Content" xml:space="preserve">
+    <value>Back</value>
+    <comment>A toolbar button that goes back, like the back button in a browser or File Explorer, in the window that was in use.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_Start.Content" xml:space="preserve">
+    <value>Start menu</value>
+    <comment>A toolbar button that opens the Windows Start menu.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ShowDesktop.Content" xml:space="preserve">
+    <value>Show desktop</value>
+    <comment>A toolbar button that shows the Windows desktop.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_TaskView.Content" xml:space="preserve">
+    <value>Task view</value>
+    <comment>A toolbar button that opens Windows Task view.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_Notifications.Content" xml:space="preserve">
+    <value>Notifications</value>
+    <comment>A toolbar button that opens the Windows notification center.</comment>
   </data>
   <data name="MouseUtils_DwellClick_ToolbarButton_OpenSettings.Content" xml:space="preserve">
     <value>Open PowerToys Settings</value>

@@ -30,10 +30,15 @@ namespace dwellclick
     // What a completed dwell does. Left/Right/Double/Middle fire a click in place; Drag is a
     // two-dwell gesture (first dwell presses the left button, second dwell releases it), which is
     // how every surveyed dwell product expresses click-and-drag without a held physical button.
-    // ScrollUp/ScrollDown turn a dwell into a wheel notch at the rest point; they are the one
-    // action family that AUTO-REPEATS (another notch per dwell period while the pointer keeps
-    // resting) and never reverts to the default action, because a single notch that snaps back
-    // to clicking would make scrolling useless. Selecting another action is the exit.
+    // The scroll and zoom actions turn a dwell into one wheel notch at the rest point (zoom is
+    // Ctrl plus the wheel, which zooms in browsers, Office, Explorer, and most viewers). They
+    // are the action family that AUTO-REPEATS (another notch per dwell period while the pointer
+    // keeps resting) and never reverts to the default action, because a single notch that snaps
+    // back to clicking would make scrolling or zooming useless. Selecting another action is the
+    // exit.
+    //
+    // The values are persisted (default_action) and cycled in order, so new actions are only
+    // ever appended.
     enum class DwellAction
     {
         LeftClick,
@@ -43,11 +48,18 @@ namespace dwellclick
         Drag,
         ScrollUp,
         ScrollDown,
+        ScrollLeft,
+        ScrollRight,
+        ZoomIn,
+        ZoomOut,
     };
+
+    // The last DwellAction, for code that walks or range-checks the enum.
+    constexpr DwellAction LastDwellAction = DwellAction::ZoomOut;
 
     // The primitive the injector is asked to synthesize. Drag is decomposed into LeftDown/LeftUp so
     // the injector stays a dumb SendInput wrapper and all sequencing lives in the engine; the
-    // scroll kinds are one wheel notch each.
+    // scroll and zoom kinds are one wheel notch each.
     enum class ClickKind
     {
         LeftClick,
@@ -58,6 +70,10 @@ namespace dwellclick
         LeftUp,
         ScrollUp,
         ScrollDown,
+        ScrollLeft,
+        ScrollRight,
+        ZoomIn,
+        ZoomOut,
     };
 
     // A plain point so the core does not need <windows.h>.
@@ -195,10 +211,10 @@ namespace dwellclick
             result.fired = FireAction(m_nextAction, s);
             result.action = m_firedAction;
 
-            if (result.fired && IsScrollAction(m_firedAction))
+            if (result.fired && IsRepeatingAction(m_firedAction))
             {
-                // Scrolling auto-repeats: restart the countdown at the same anchor so another
-                // notch lands each dwell period for as long as the pointer keeps resting.
+                // Scrolling and zooming auto-repeat: restart the countdown at the same anchor so
+                // another notch lands each dwell period for as long as the pointer keeps resting.
                 // Movement re-anchors as usual, and pause or the toolbar stops it.
                 m_restStartTick = tick;
             }
@@ -335,9 +351,20 @@ namespace dwellclick
             m_anchor = m_current;
         }
 
-        static constexpr bool IsScrollAction(DwellAction action)
+        static constexpr bool IsRepeatingAction(DwellAction action)
         {
-            return action == DwellAction::ScrollUp || action == DwellAction::ScrollDown;
+            switch (action)
+            {
+            case DwellAction::ScrollUp:
+            case DwellAction::ScrollDown:
+            case DwellAction::ScrollLeft:
+            case DwellAction::ScrollRight:
+            case DwellAction::ZoomIn:
+            case DwellAction::ZoomOut:
+                return true;
+            default:
+                return false;
+            }
         }
 
         // Inject the action. Returns whether the OS accepted it. Drag advances its own two-step
@@ -347,9 +374,9 @@ namespace dwellclick
         {
             m_firedAction = action;
 
-            if (IsScrollAction(action))
+            if (IsRepeatingAction(action))
             {
-                // Deliberately no revert (see DwellAction): scroll is a mode, not a one-shot.
+                // Deliberately no revert (see DwellAction): scroll and zoom are modes, not one-shots.
                 return m_injector.Inject(ToClickKind(action), m_current);
             }
 
@@ -406,6 +433,14 @@ namespace dwellclick
                 return ClickKind::ScrollUp;
             case DwellAction::ScrollDown:
                 return ClickKind::ScrollDown;
+            case DwellAction::ScrollLeft:
+                return ClickKind::ScrollLeft;
+            case DwellAction::ScrollRight:
+                return ClickKind::ScrollRight;
+            case DwellAction::ZoomIn:
+                return ClickKind::ZoomIn;
+            case DwellAction::ZoomOut:
+                return ClickKind::ZoomOut;
             case DwellAction::Drag:
             case DwellAction::LeftClick:
             default:

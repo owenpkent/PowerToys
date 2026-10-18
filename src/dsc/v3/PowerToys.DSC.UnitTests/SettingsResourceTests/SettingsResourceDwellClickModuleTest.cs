@@ -27,11 +27,15 @@ public sealed class SettingsResourceDwellClickModuleTest : SettingsResourceModul
             s.Properties.DefaultAction.Value = 1;
             s.Properties.RevertToDefaultAfterAction.Value = !s.Properties.RevertToDefaultAfterAction.Value;
             s.Properties.ShowToolbar.Value = !s.Properties.ShowToolbar.Value;
-            s.Properties.ToolbarSide.Value = 1;
+            s.Properties.ToolbarSide.Value = 2;
+            s.Properties.ToolbarPosition.Value = 25;
+            s.Properties.ToolbarStyle.Value = 1;
             s.Properties.ShowCountdown.Value = !s.Properties.ShowCountdown.Value;
             s.Properties.OverlaySize.Value = 2;
             s.Properties.ToolbarButtonMiddleClick.Value = !s.Properties.ToolbarButtonMiddleClick.Value;
             s.Properties.ToolbarButtonScrollDown.Value = !s.Properties.ToolbarButtonScrollDown.Value;
+            s.Properties.ToolbarButtonZoomIn.Value = !s.Properties.ToolbarButtonZoomIn.Value;
+            s.Properties.ToolbarButtonNotifications.Value = !s.Properties.ToolbarButtonNotifications.Value;
         };
     }
 }

@@ -29,6 +29,9 @@
 //   - A physical click activates immediately and applies the same leave-to-rearm rule.
 namespace dwellclick
 {
+    // Select* commands choose the next dwell action. The system commands (Back through
+    // Notifications) act at once instead, as a keystroke into the window the user was in: the
+    // toolbar never takes focus, so that window is still the foreground one.
     enum class ToolbarCommand
     {
         ToggleCollapse,
@@ -41,6 +44,56 @@ namespace dwellclick
         SelectScrollUp,
         SelectScrollDown,
         OpenSettings,
+        SelectScrollLeft,
+        SelectScrollRight,
+        SelectZoomIn,
+        SelectZoomOut,
+        Back,
+        StartMenu,
+        ShowDesktop,
+        TaskView,
+        Notifications,
+    };
+
+    // The dwell action a Select* command chooses, or nullopt for every other command.
+    constexpr std::optional<DwellAction> ActionFor(ToolbarCommand command)
+    {
+        switch (command)
+        {
+        case ToolbarCommand::SelectLeftClick:
+            return DwellAction::LeftClick;
+        case ToolbarCommand::SelectDoubleClick:
+            return DwellAction::DoubleClick;
+        case ToolbarCommand::SelectRightClick:
+            return DwellAction::RightClick;
+        case ToolbarCommand::SelectMiddleClick:
+            return DwellAction::MiddleClick;
+        case ToolbarCommand::SelectDrag:
+            return DwellAction::Drag;
+        case ToolbarCommand::SelectScrollUp:
+            return DwellAction::ScrollUp;
+        case ToolbarCommand::SelectScrollDown:
+            return DwellAction::ScrollDown;
+        case ToolbarCommand::SelectScrollLeft:
+            return DwellAction::ScrollLeft;
+        case ToolbarCommand::SelectScrollRight:
+            return DwellAction::ScrollRight;
+        case ToolbarCommand::SelectZoomIn:
+            return DwellAction::ZoomIn;
+        case ToolbarCommand::SelectZoomOut:
+            return DwellAction::ZoomOut;
+        default:
+            return std::nullopt;
+        }
+    }
+
+    // Buttons flow along the toolbar's long axis: down a bar docked to the left or right edge,
+    // across a bar docked to the top or bottom edge or the floating menu's grid. A line that would
+    // outgrow the screen wraps into another column (or row) beside it.
+    enum class ToolbarOrientation
+    {
+        Vertical,
+        Horizontal,
     };
 
     struct ToolbarRect
@@ -152,25 +205,63 @@ namespace dwellclick
             return m_collapsed ? 1 : static_cast<int>(m_buttons.size());
         }
 
+        // Set the flow direction and how many buttons fit on one line before wrapping. A line
+        // length below 1 means unlimited. Every button may move, so any running hover is
+        // meaningless.
+        void SetLayout(ToolbarOrientation orientation, int buttonsPerLine)
+        {
+            m_orientation = orientation;
+            m_buttonsPerLine = buttonsPerLine < 1 ? 0 : buttonsPerLine;
+            ResetHover();
+        }
+
+        ToolbarOrientation Orientation() const
+        {
+            return m_orientation;
+        }
+
+        // The longest line length that fits in available units (unscaled) along the long axis.
+        // Always at least 1, so a tiny screen still shows a usable column of buttons.
+        int ButtonsThatFit(int available) const
+        {
+            const int fit = (available - 2 * Padding + Gap) / (m_buttonSize + Gap);
+            return fit < 1 ? 1 : fit;
+        }
+
+        // Buttons on one line, and the number of lines, for what is currently visible.
+        int ButtonsPerLine() const
+        {
+            const int n = VisibleButtonCount();
+            return m_buttonsPerLine < 1 || m_buttonsPerLine > n ? n : m_buttonsPerLine;
+        }
+
+        int LineCount() const
+        {
+            const int perLine = ButtonsPerLine();
+            return perLine < 1 ? 1 : (VisibleButtonCount() + perLine - 1) / perLine;
+        }
+
         int Width() const
         {
-            return Padding + m_buttonSize + Padding;
+            return m_orientation == ToolbarOrientation::Vertical ? Span(LineCount()) : Span(ButtonsPerLine());
         }
 
         int Height() const
         {
-            const int n = VisibleButtonCount();
-            return Padding + n * m_buttonSize + (n - 1) * Gap + Padding;
+            return m_orientation == ToolbarOrientation::Vertical ? Span(ButtonsPerLine()) : Span(LineCount());
         }
 
         ToolbarRect ButtonRect(int index) const
         {
-            return ToolbarRect{
-                Padding,
-                Padding + index * (m_buttonSize + Gap),
-                m_buttonSize,
-                m_buttonSize,
-            };
+            const int perLine = ButtonsPerLine() < 1 ? 1 : ButtonsPerLine();
+            const int along = index % perLine;
+            const int line = index / perLine;
+            const long step = m_buttonSize + Gap;
+            const long alongOffset = Padding + along * step;
+            const long lineOffset = Padding + line * step;
+            return m_orientation == ToolbarOrientation::Vertical
+                       ? ToolbarRect{ lineOffset, alongOffset, m_buttonSize, m_buttonSize }
+                       : ToolbarRect{ alongOffset, lineOffset, m_buttonSize, m_buttonSize };
         }
 
         // The button under a toolbar-local point, or -1 for the padding and gaps.
@@ -261,7 +352,16 @@ namespace dwellclick
         }
 
     private:
+        // The extent of count buttons in a row, with the outer padding.
+        int Span(int count) const
+        {
+            const int n = count < 1 ? 1 : count;
+            return Padding + n * m_buttonSize + (n - 1) * Gap + Padding;
+        }
+
         std::vector<ToolbarCommand> m_buttons;
+        ToolbarOrientation m_orientation = ToolbarOrientation::Vertical;
+        int m_buttonsPerLine = 0;
         int m_buttonSize = DefaultButtonSize;
         bool m_collapsed = false;
         int m_hoverIndex = -1;

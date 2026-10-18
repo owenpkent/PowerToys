@@ -29,6 +29,10 @@ public class DwellClickSettingsTests : UITestBase
     private const string ToolbarButtonMiddleClickId = "MouseUtils_DwellClickToolbarButtonMiddleClickId";
     private const string ToolbarButtonScrollDownId = "MouseUtils_DwellClickToolbarButtonScrollDownId";
     private const string OverlaySizeId = "MouseUtils_DwellClickOverlaySizeId";
+    private const string ToolbarStyleId = "MouseUtils_DwellClickToolbarStyleId";
+    private const string ToolbarPositionId = "MouseUtils_DwellClickToolbarPositionId";
+    private const string ToolbarPositionLabelId = "MouseUtils_DwellClickToolbarPositionLabelId";
+    private const string ToolbarButtonZoomInId = "MouseUtils_DwellClickToolbarButtonZoomInId";
 
     // The behavioral tests observe the Drag action: its first dwell presses and HOLDS the left
     // button (readable in GetAsyncKeyState, like the Mouse Button Lock tests), and its second
@@ -159,8 +163,14 @@ public class DwellClickSettingsTests : UITestBase
 
         // Overlay options. Everything toolbar-related is set before hiding the toolbar,
         // because hiding it disables those controls (mirroring the IsEnabled bindings).
-        SelectComboItem(ToolbarSideId, "Right edge");
-        AssertPersistedInt("toolbar_side", 1);
+        SelectComboItem(ToolbarSideId, "Top edge");
+        AssertPersistedInt("toolbar_side", 2);
+        SelectComboItem(ToolbarStyleId, "Floating button with large menu");
+        AssertPersistedInt("toolbar_style", 1);
+        Session.Find<Slider>(By.AccessibilityId(ToolbarPositionId), 5_000).SetValue(25);
+        AssertPersistedInt("toolbar_position", 25);
+        SetCheckBox(ToolbarButtonZoomInId, check: true);
+        AssertPersistedBool("toolbar_button_zoom_in", true);
         SelectComboItem(OverlaySizeId, "Large");
         AssertPersistedInt("overlay_size", 2);
         SetCheckBox(ToolbarButtonMiddleClickId, check: true);
@@ -179,8 +189,18 @@ public class DwellClickSettingsTests : UITestBase
         AssertCheckBoxState(ShowCountdownId, expectedChecked: false);
         AssertPersistedInt("default_action", 1);
         AssertPersistedBool("revert_to_default_after_action", false);
-        AssertPersistedInt("toolbar_side", 1);
+        AssertPersistedInt("toolbar_side", 2);
+        AssertPersistedInt("toolbar_style", 1);
+        AssertPersistedInt("toolbar_position", 25);
+        AssertPersistedBool("toolbar_button_zoom_in", true);
         AssertPersistedInt("overlay_size", 2);
+
+        // The position slider cannot be read back (see DwellTimeLabelId); its bound label can.
+        Session.Find<TextBlock>(By.AccessibilityId(ToolbarPositionLabelId), 5_000).ScrollIntoView();
+        Assert.AreEqual(
+            "25%",
+            Session.Find<TextBlock>(By.AccessibilityId(ToolbarPositionLabelId), 5_000).Text,
+            "Toolbar position did not reflect its persisted value after restart.");
         AssertPersistedBool("toolbar_button_middle_click", true);
         AssertPersistedBool("toolbar_button_scroll_down", false);
         AssertPersistedBool("show_toolbar", false);

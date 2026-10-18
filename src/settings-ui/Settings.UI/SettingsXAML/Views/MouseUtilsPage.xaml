@@ -17,6 +17,7 @@
     <local:NavigablePage.Resources>
         <converters:IndexBitFieldToVisibilityConverter x:Key="IndexBitFieldToVisibilityConverter" />
         <converters:MillisecondsLabelConverter x:Key="MillisecondsLabelConverter" />
+        <converters:PercentLabelConverter x:Key="PercentLabelConverter" />
         <tkconverters:BoolToVisibilityConverter
             x:Key="BoolToInvertedVisibilityConverter"
             FalseValue="Visible"
@@ -228,7 +229,43 @@
                                 <ComboBox MinWidth="{StaticResource SettingActionControlMinWidth}" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarSideId" SelectedIndex="{x:Bind Path=ViewModel.DwellClickToolbarSide, Mode=TwoWay}">
                                     <ComboBoxItem x:Uid="MouseUtils_DwellClick_ToolbarSide_Left" />
                                     <ComboBoxItem x:Uid="MouseUtils_DwellClick_ToolbarSide_Right" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_ToolbarSide_Top" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_ToolbarSide_Bottom" />
                                 </ComboBox>
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard
+                                Name="MouseUtilsDwellClickToolbarStyle"
+                                x:Uid="MouseUtils_DwellClick_ToolbarStyle"
+                                IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <ComboBox MinWidth="{StaticResource SettingActionControlMinWidth}" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarStyleId" SelectedIndex="{x:Bind Path=ViewModel.DwellClickToolbarStyle, Mode=TwoWay}">
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_ToolbarStyle_Docked" />
+                                    <ComboBoxItem x:Uid="MouseUtils_DwellClick_ToolbarStyle_Floating" />
+                                </ComboBox>
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard
+                                Name="MouseUtilsDwellClickToolbarPosition"
+                                x:Uid="MouseUtils_DwellClick_ToolbarPosition"
+                                IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <TextBlock
+                                        MinWidth="56"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarPositionLabelId"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind ViewModel.DwellClickToolbarPosition, Mode=OneWay, Converter={StaticResource PercentLabelConverter}}"
+                                        TextAlignment="Right" />
+                                    <Slider
+                                        MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                        AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarPositionId"
+                                        LargeChange="10"
+                                        Maximum="100"
+                                        Minimum="0"
+                                        SmallChange="5"
+                                        SnapsTo="StepValues"
+                                        StepFrequency="5"
+                                        ThumbToolTipValueConverter="{StaticResource PercentLabelConverter}"
+                                        Value="{x:Bind ViewModel.DwellClickToolbarPosition, Mode=TwoWay}" />
+                                </StackPanel>
                             </tkcontrols:SettingsCard>
                             <tkcontrols:SettingsCard ContentAlignment="Left">
                                 <CheckBox x:Uid="MouseUtils_DwellClick_ShowCountdown" AutomationProperties.AutomationId="MouseUtils_DwellClickShowCountdownId" IsChecked="{x:Bind ViewModel.DwellClickShowCountdown, Mode=TwoWay}" />
@@ -270,6 +307,33 @@
                             </tkcontrols:SettingsCard>
                             <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
                                 <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_ScrollDown" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonScrollDownId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonScrollDown, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_ScrollLeft" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonScrollLeftId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonScrollLeft, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_ScrollRight" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonScrollRightId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonScrollRight, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_ZoomIn" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonZoomInId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonZoomIn, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_ZoomOut" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonZoomOutId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonZoomOut, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_Back" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonBackId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonBack, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_Start" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonStartId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonStart, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_ShowDesktop" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonShowDesktopId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonShowDesktop, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_TaskView" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonTaskViewId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonTaskView, Mode=TwoWay}" />
+                            </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
+                                <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_Notifications" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonNotificationsId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonNotifications, Mode=TwoWay}" />
                             </tkcontrols:SettingsCard>
                             <tkcontrols:SettingsCard ContentAlignment="Left" IsEnabled="{x:Bind ViewModel.DwellClickShowToolbar, Mode=OneWay}">
                                 <CheckBox x:Uid="MouseUtils_DwellClick_ToolbarButton_OpenSettings" AutomationProperties.AutomationId="MouseUtils_DwellClickToolbarButtonOpenSettingsId" IsChecked="{x:Bind ViewModel.DwellClickToolbarButtonOpenSettings, Mode=TwoWay}" />

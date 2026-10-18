@@ -44,6 +44,13 @@ namespace
     // toolbar buttons and the countdown ring. The indicator bitmap is square; the ring floats
     // centered inside it with room for the halo stroke.
     constexpr int BUTTON_SIZES[3] = { 40, 56, 72 };
+
+    // The floating style's large menu uses bigger targets than the docked bar: it only shows
+    // while the user is choosing, so it can afford the room (Ease Mouse calls this menu "Big").
+    constexpr int MENU_BUTTON_SIZES[3] = { 64, 80, 96 };
+
+    // Gap kept between the toolbar and the screen edge, in 96-dpi units.
+    constexpr int EDGE_MARGIN = 8;
     constexpr int INDICATOR_SIZES[3] = { 40, 48, 62 };
     constexpr double INDICATOR_RADII[3] = { 11.5, 15.0, 19.5 };
 
@@ -255,11 +262,13 @@ namespace dwellclick
 
     void Overlay::ApplySettings(const OverlaySettings& settings)
     {
-        const bool toolbarChanged = settings.showToolbar != m_settings.showToolbar || settings.toolbarSide != m_settings.toolbarSide;
+        const bool toolbarChanged = settings.showToolbar != m_settings.showToolbar;
         // The first call always rebuilds: the model's constructor default and the settings
         // defaults are maintained separately, and only the settings are authoritative.
         const bool buttonsChanged = !m_buttonsInitialized || !settings.SameButtons(m_settings);
         const bool sizeChanged = !m_buttonsInitialized || ClampSizeIndex(settings.overlaySize) != ClampSizeIndex(m_settings.overlaySize);
+        const bool placementChanged = !m_buttonsInitialized || !settings.SamePlacement(m_settings);
+        const bool styleChanged = !m_buttonsInitialized || (settings.toolbarStyle == 1) != (m_settings.toolbarStyle == 1);
         const bool countdownChanged = settings.showCountdown != m_settings.showCountdown;
         m_settings = settings;
         m_buttonsInitialized = true;
@@ -268,50 +277,17 @@ namespace dwellclick
         {
             return;
         }
-        if (sizeChanged)
-        {
-            m_model.SetButtonSize(BUTTON_SIZES[ClampSizeIndex(m_settings.overlaySize)]);
-            if (!buttonsChanged)
-            {
-                LayoutToolbar();
-            }
-        }
         if (buttonsChanged)
         {
-            std::vector<ToolbarCommand> buttons{ ToolbarCommand::ToggleCollapse, ToolbarCommand::TogglePause };
-            if (m_settings.buttonLeftClick)
-            {
-                buttons.push_back(ToolbarCommand::SelectLeftClick);
-            }
-            if (m_settings.buttonDoubleClick)
-            {
-                buttons.push_back(ToolbarCommand::SelectDoubleClick);
-            }
-            if (m_settings.buttonRightClick)
-            {
-                buttons.push_back(ToolbarCommand::SelectRightClick);
-            }
-            if (m_settings.buttonMiddleClick)
-            {
-                buttons.push_back(ToolbarCommand::SelectMiddleClick);
-            }
-            if (m_settings.buttonDrag)
-            {
-                buttons.push_back(ToolbarCommand::SelectDrag);
-            }
-            if (m_settings.buttonScrollUp)
-            {
-                buttons.push_back(ToolbarCommand::SelectScrollUp);
-            }
-            if (m_settings.buttonScrollDown)
-            {
-                buttons.push_back(ToolbarCommand::SelectScrollDown);
-            }
-            if (m_settings.buttonOpenSettings)
-            {
-                buttons.push_back(ToolbarCommand::OpenSettings);
-            }
-            m_model.SetButtons(std::move(buttons));
+            m_model.SetButtons(m_settings.Buttons());
+        }
+        if (styleChanged)
+        {
+            // The floating style starts as its single button; the docked bar starts open.
+            m_model.SetCollapsed(IsFloating());
+        }
+        if (buttonsChanged || sizeChanged || placementChanged || styleChanged)
+        {
             LayoutToolbar();
         }
         if (toolbarChanged)
@@ -341,6 +317,16 @@ namespace dwellclick
             return false;
         }
         return PtInRect(&m_toolbarRect, screenPt) != FALSE;
+    }
+
+    bool Overlay::IsFloating() const
+    {
+        return m_settings.toolbarStyle == 1;
+    }
+
+    bool Overlay::IsMenuOpen() const
+    {
+        return m_toolbar && m_settings.showToolbar && IsFloating() && !m_model.IsCollapsed();
     }
 
     void Overlay::TickToolbar(POINT screenPt, uint64_t tick, int dwellMs)
@@ -397,6 +383,15 @@ namespace dwellclick
         {
             m_onCommand(command);
         }
+        if (IsMenuOpen())
+        {
+            // The large menu is a chooser: any choice closes it back to its button, the way
+            // Ease Mouse's menu does. The menu was over the middle of the screen, so the pointer
+            // is not over the button that reappears at the edge and cannot reopen it at once.
+            m_model.SetCollapsed(true);
+            LayoutToolbar();
+            return;
+        }
         PaintToolbar(m_lastTick, m_lastDwellMs);
     }
 
@@ -407,20 +402,95 @@ namespace dwellclick
             return;
         }
         const double scale = Scale();
-        const int width = static_cast<int>(m_model.Width() * scale);
-        const int height = static_cast<int>(m_model.Height() * scale);
 
-        // Dock to the primary monitor's work area, vertically centered.
+        // The primary monitor's work area, so the toolbar never sits under the taskbar.
         MONITORINFO monitor{ sizeof(monitor) };
         GetMonitorInfoW(MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY), &monitor);
-        const int margin = static_cast<int>(8 * scale);
-        const int x = m_settings.toolbarSide == 0 ? monitor.rcWork.left + margin : monitor.rcWork.right - width - margin;
-        const int y = monitor.rcWork.top + ((monitor.rcWork.bottom - monitor.rcWork.top) - height) / 2;
+        if (IsMenuOpen())
+        {
+            LayoutMenu(monitor.rcWork, scale);
+        }
+        else
+        {
+            LayoutDocked(monitor.rcWork, scale);
+        }
 
-        SetWindowPos(m_toolbar, HWND_TOPMOST, x, y, width, height, SWP_NOACTIVATE);
-        m_toolbarRect = RECT{ x, y, x + width, y + height };
+        const int width = static_cast<int>(m_model.Width() * scale);
+        const int height = static_cast<int>(m_model.Height() * scale);
+        SetWindowPos(m_toolbar, HWND_TOPMOST, m_toolbarRect.left, m_toolbarRect.top, width, height, SWP_NOACTIVATE);
+        m_toolbarRect.right = m_toolbarRect.left + width;
+        m_toolbarRect.bottom = m_toolbarRect.top + height;
         m_lastPaintedHover = -2; // force the next paint
         PaintToolbar(m_lastTick, m_lastDwellMs);
+    }
+
+    void Overlay::LayoutDocked(const RECT& work, double scale)
+    {
+        // A bar along its edge (or, in the floating style, the single button that opens the
+        // menu). The side edges stack buttons down; the top and bottom edges run them across.
+        const int side = m_settings.toolbarSide < 0 || m_settings.toolbarSide > 3 ? 0 : m_settings.toolbarSide;
+        const bool vertical = side <= 1;
+        const int margin = static_cast<int>(EDGE_MARGIN * scale);
+        const int edgeLength = vertical ? work.bottom - work.top : work.right - work.left;
+
+        m_model.SetButtonSize(BUTTON_SIZES[ClampSizeIndex(m_settings.overlaySize)]);
+        m_model.SetLayout(
+            vertical ? ToolbarOrientation::Vertical : ToolbarOrientation::Horizontal,
+            m_model.ButtonsThatFit(static_cast<int>((static_cast<double>(edgeLength) - 2.0 * margin) / scale)));
+
+        const int width = static_cast<int>(m_model.Width() * scale);
+        const int height = static_cast<int>(m_model.Height() * scale);
+        const int length = vertical ? height : width;
+
+        // Center the bar on the chosen point along the edge, then keep it fully on screen.
+        const int position = m_settings.toolbarPosition < 0 ? 0 : (m_settings.toolbarPosition > 100 ? 100 : m_settings.toolbarPosition);
+        const int start = (vertical ? work.top : work.left) + margin;
+        const int end = (vertical ? work.bottom : work.right) - margin - length;
+        int along = (vertical ? work.top : work.left) + static_cast<int>(static_cast<long long>(edgeLength) * position / 100) - length / 2;
+        along = along > end ? end : along;
+        along = along < start ? start : along;
+
+        int x = 0;
+        int y = 0;
+        switch (side)
+        {
+        case 1: // right
+            x = work.right - width - margin;
+            y = along;
+            break;
+        case 2: // top
+            x = along;
+            y = work.top + margin;
+            break;
+        case 3: // bottom
+            x = along;
+            y = work.bottom - height - margin;
+            break;
+        case 0: // left
+        default:
+            x = work.left + margin;
+            y = along;
+            break;
+        }
+        m_toolbarRect = RECT{ x, y, x + width, y + height };
+    }
+
+    void Overlay::LayoutMenu(const RECT& work, double scale)
+    {
+        // The floating style's large menu: a near-square grid of big buttons centered on the
+        // work area, shrunk to fewer columns only if the screen is too narrow.
+        m_model.SetButtonSize(MENU_BUTTON_SIZES[ClampSizeIndex(m_settings.overlaySize)]);
+        const int count = static_cast<int>(m_model.Buttons().size());
+        int columns = static_cast<int>(std::ceil(std::sqrt(static_cast<double>(count))));
+        const int fit = m_model.ButtonsThatFit(static_cast<int>((static_cast<double>(work.right) - work.left) / scale));
+        columns = columns > fit ? fit : columns;
+        m_model.SetLayout(ToolbarOrientation::Horizontal, columns);
+
+        const int width = static_cast<int>(m_model.Width() * scale);
+        const int height = static_cast<int>(m_model.Height() * scale);
+        const int x = work.left + ((work.right - work.left) - width) / 2;
+        const int y = work.top + ((work.bottom - work.top) - height) / 2;
+        m_toolbarRect = RECT{ x, y, x + width, y + height };
     }
 
     void Overlay::PaintToolbar(uint64_t tick, int dwellMs)
@@ -472,14 +542,8 @@ namespace dwellclick
             const Gdiplus::RectF button{ s(rect.x), s(rect.y), s(rect.w), s(rect.h) };
 
             const ToolbarCommand command = m_model.CommandFor(i);
-            const bool isCurrentAction =
-                (command == ToolbarCommand::SelectLeftClick && m_state.currentAction == DwellAction::LeftClick) ||
-                (command == ToolbarCommand::SelectDoubleClick && m_state.currentAction == DwellAction::DoubleClick) ||
-                (command == ToolbarCommand::SelectRightClick && m_state.currentAction == DwellAction::RightClick) ||
-                (command == ToolbarCommand::SelectMiddleClick && m_state.currentAction == DwellAction::MiddleClick) ||
-                (command == ToolbarCommand::SelectDrag && m_state.currentAction == DwellAction::Drag) ||
-                (command == ToolbarCommand::SelectScrollUp && m_state.currentAction == DwellAction::ScrollUp) ||
-                (command == ToolbarCommand::SelectScrollDown && m_state.currentAction == DwellAction::ScrollDown);
+            const std::optional<DwellAction> action = ActionFor(command);
+            const bool isCurrentAction = action && *action == m_state.currentAction;
             const bool isActive = isCurrentAction || (command == ToolbarCommand::TogglePause && m_state.paused);
 
             Gdiplus::GraphicsPath buttonPath;
@@ -522,15 +586,55 @@ namespace dwellclick
             {
             case ToolbarCommand::ToggleCollapse:
             {
+                if (IsFloating())
+                {
+                    if (m_model.IsCollapsed())
+                    {
+                        // The floating button: a 3 x 3 grid of dots, "open the menu".
+                        const Gdiplus::REAL dot = glyph.Width * 0.11f;
+                        for (int row = 0; row < 3; ++row)
+                        {
+                            for (int col = 0; col < 3; ++col)
+                            {
+                                const Gdiplus::REAL dx = glyph.X + glyph.Width * (0.15f + 0.35f * col);
+                                const Gdiplus::REAL dy = glyph.Y + glyph.Height * (0.15f + 0.35f * row);
+                                g.FillEllipse(&brush, dx - dot, dy - dot, dot * 2, dot * 2);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // Close the menu.
+                        const Gdiplus::REAL k = glyph.Width * 0.32f;
+                        g.DrawLine(&pen, cx - k, cy - k, cx + k, cy + k);
+                        g.DrawLine(&pen, cx - k, cy + k, cx + k, cy - k);
+                    }
+                    break;
+                }
+
                 // Chevron pointing into the docked edge to collapse, away from it to expand.
-                const Gdiplus::REAL edgeDir = m_settings.toolbarSide == 0 ? -1.0f : 1.0f;
+                // The side edges point it left or right; the top and bottom edges, up or down.
+                const int side = m_settings.toolbarSide;
+                const bool horizontalEdge = side == 2 || side == 3;
+                const Gdiplus::REAL edgeDir = (side == 0 || side == 2) ? -1.0f : 1.0f;
                 const Gdiplus::REAL dir = m_model.IsCollapsed() ? -edgeDir : edgeDir;
                 const Gdiplus::REAL span = glyph.Width * 0.28f;
+                const Gdiplus::REAL reach = glyph.Height * 0.35f;
                 Gdiplus::PointF points[3] = {
-                    { cx - span * dir * 0.5f, cy - glyph.Height * 0.35f },
+                    { cx - span * dir * 0.5f, cy - reach },
                     { cx + span * dir * 0.9f, cy },
-                    { cx - span * dir * 0.5f, cy + glyph.Height * 0.35f },
+                    { cx - span * dir * 0.5f, cy + reach },
                 };
+                if (horizontalEdge)
+                {
+                    for (auto& point : points)
+                    {
+                        // Rotate the chevron a quarter turn about the button center.
+                        const Gdiplus::REAL dx = point.X - cx;
+                        const Gdiplus::REAL dy = point.Y - cy;
+                        point = Gdiplus::PointF{ cx - dy, cy + dx };
+                    }
+                }
                 g.DrawLines(&pen, points, 3);
                 break;
             }
@@ -585,6 +689,96 @@ namespace dwellclick
                 const Gdiplus::REAL line2 = up ? glyph.Y + glyph.Height : glyph.Y;
                 g.DrawLine(&pen, glyph.X + glyph.Width * 0.12f, line1, glyph.X + glyph.Width * 0.88f, line1);
                 g.DrawLine(&pen, glyph.X + glyph.Width * 0.12f, line2, glyph.X + glyph.Width * 0.88f, line2);
+                break;
+            }
+            case ToolbarCommand::SelectScrollLeft:
+            case ToolbarCommand::SelectScrollRight:
+            {
+                // The scroll glyph turned on its side: an arrow beside two content columns.
+                const bool left = command == ToolbarCommand::SelectScrollLeft;
+                const Gdiplus::REAL head = glyph.Height * 0.24f;
+                const Gdiplus::REAL tipX = left ? glyph.X : glyph.X + glyph.Width;
+                const Gdiplus::REAL tailX = left ? glyph.X + glyph.Width * 0.62f : glyph.X + glyph.Width * 0.38f;
+                const Gdiplus::REAL headX = left ? tipX + head : tipX - head;
+                g.DrawLine(&pen, tipX, cy, tailX, cy);
+                g.DrawLine(&pen, tipX, cy, headX, cy - head);
+                g.DrawLine(&pen, tipX, cy, headX, cy + head);
+                const Gdiplus::REAL col1 = left ? glyph.X + glyph.Width * 0.82f : glyph.X + glyph.Width * 0.18f;
+                const Gdiplus::REAL col2 = left ? glyph.X + glyph.Width : glyph.X;
+                g.DrawLine(&pen, col1, glyph.Y + glyph.Height * 0.12f, col1, glyph.Y + glyph.Height * 0.88f);
+                g.DrawLine(&pen, col2, glyph.Y + glyph.Height * 0.12f, col2, glyph.Y + glyph.Height * 0.88f);
+                break;
+            }
+            case ToolbarCommand::SelectZoomIn:
+            case ToolbarCommand::SelectZoomOut:
+            {
+                // A magnifier with a plus or a minus in the lens.
+                const Gdiplus::REAL lensR = glyph.Width * 0.34f;
+                const Gdiplus::REAL lx = glyph.X + lensR;
+                const Gdiplus::REAL ly = glyph.Y + lensR;
+                g.DrawEllipse(&pen, lx - lensR, ly - lensR, lensR * 2, lensR * 2);
+                const Gdiplus::REAL handleStart = lensR * 0.72f;
+                g.DrawLine(&pen, lx + handleStart, ly + handleStart, glyph.X + glyph.Width, glyph.Y + glyph.Height);
+                const Gdiplus::REAL mark = lensR * 0.5f;
+                g.DrawLine(&pen, lx - mark, ly, lx + mark, ly);
+                if (command == ToolbarCommand::SelectZoomIn)
+                {
+                    g.DrawLine(&pen, lx, ly - mark, lx, ly + mark);
+                }
+                break;
+            }
+            case ToolbarCommand::Back:
+            {
+                // An arrow pointing left.
+                const Gdiplus::REAL head = glyph.Width * 0.34f;
+                g.DrawLine(&pen, glyph.X, cy, glyph.X + glyph.Width, cy);
+                g.DrawLine(&pen, glyph.X, cy, glyph.X + head, cy - head);
+                g.DrawLine(&pen, glyph.X, cy, glyph.X + head, cy + head);
+                break;
+            }
+            case ToolbarCommand::StartMenu:
+            {
+                // Four panes, the Start button's shape.
+                const Gdiplus::REAL gap = glyph.Width * 0.08f;
+                const Gdiplus::REAL pane = (glyph.Width - gap) / 2;
+                g.FillRectangle(&brush, glyph.X, glyph.Y, pane, pane);
+                g.FillRectangle(&brush, glyph.X + pane + gap, glyph.Y, pane, pane);
+                g.FillRectangle(&brush, glyph.X, glyph.Y + pane + gap, pane, pane);
+                g.FillRectangle(&brush, glyph.X + pane + gap, glyph.Y + pane + gap, pane, pane);
+                break;
+            }
+            case ToolbarCommand::ShowDesktop:
+            {
+                // A monitor on a stand: the desktop.
+                const Gdiplus::REAL screenH = glyph.Height * 0.66f;
+                g.DrawRectangle(&pen, glyph.X, glyph.Y + glyph.Height * 0.04f, glyph.Width, screenH);
+                g.DrawLine(&pen, cx, glyph.Y + glyph.Height * 0.04f + screenH, cx, glyph.Y + glyph.Height * 0.9f);
+                g.DrawLine(&pen, glyph.X + glyph.Width * 0.25f, glyph.Y + glyph.Height * 0.95f, glyph.X + glyph.Width * 0.75f, glyph.Y + glyph.Height * 0.95f);
+                break;
+            }
+            case ToolbarCommand::TaskView:
+            {
+                // Two staggered windows: the open apps side by side.
+                const Gdiplus::REAL w = glyph.Width * 0.62f;
+                const Gdiplus::REAL h = glyph.Height * 0.62f;
+                g.DrawRectangle(&pen, glyph.X + glyph.Width - w, glyph.Y, w, h);
+                Gdiplus::SolidBrush backing(BAR_BACKGROUND);
+                g.FillRectangle(&backing, glyph.X, glyph.Y + glyph.Height - h, w, h);
+                g.DrawRectangle(&pen, glyph.X, glyph.Y + glyph.Height - h, w, h);
+                break;
+            }
+            case ToolbarCommand::Notifications:
+            {
+                // A bell: dome, rim, and clapper.
+                Gdiplus::GraphicsPath bell;
+                const Gdiplus::REAL rimY = glyph.Y + glyph.Height * 0.74f;
+                bell.AddArc(glyph.X + glyph.Width * 0.18f, glyph.Y + glyph.Height * 0.04f, glyph.Width * 0.64f, glyph.Height * 0.64f, 180.0f, 180.0f);
+                bell.AddLine(glyph.X + glyph.Width * 0.82f, glyph.Y + glyph.Height * 0.36f, glyph.X + glyph.Width * 0.92f, rimY);
+                bell.AddLine(glyph.X + glyph.Width * 0.08f, rimY, glyph.X + glyph.Width * 0.18f, glyph.Y + glyph.Height * 0.36f);
+                bell.CloseFigure();
+                g.DrawPath(&pen, &bell);
+                const Gdiplus::REAL clapper = glyph.Width * 0.1f;
+                g.FillEllipse(&brush, cx - clapper, glyph.Y + glyph.Height * 0.82f, clapper * 2, clapper * 1.6f);
                 break;
             }
             case ToolbarCommand::OpenSettings:

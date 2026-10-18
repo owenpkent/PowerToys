@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <initializer_list>
+#include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
@@ -88,6 +90,17 @@ namespace
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_SCROLL_UP[] = L"toolbar_button_scroll_up";
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_SCROLL_DOWN[] = L"toolbar_button_scroll_down";
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_OPEN_SETTINGS[] = L"toolbar_button_open_settings";
+    const wchar_t JSON_KEY_TOOLBAR_POSITION[] = L"toolbar_position";
+    const wchar_t JSON_KEY_TOOLBAR_STYLE[] = L"toolbar_style";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_SCROLL_LEFT[] = L"toolbar_button_scroll_left";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_SCROLL_RIGHT[] = L"toolbar_button_scroll_right";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_ZOOM_IN[] = L"toolbar_button_zoom_in";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_ZOOM_OUT[] = L"toolbar_button_zoom_out";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_BACK[] = L"toolbar_button_back";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_START[] = L"toolbar_button_start";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_SHOW_DESKTOP[] = L"toolbar_button_show_desktop";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_TASK_VIEW[] = L"toolbar_button_task_view";
+    const wchar_t JSON_KEY_TOOLBAR_BUTTON_NOTIFICATIONS[] = L"toolbar_button_notifications";
 
     // dwExtraInfo tag stamped on every event we inject via SendInput, so the hook ignores our
     // own synthetic clicks: a dwell-fired click must not register as the user clicking
@@ -185,6 +198,56 @@ namespace
         return wav;
     }
 
+    // Press the keys in order, then release them in reverse, as one tagged SendInput batch so a
+    // modifier is never left down. Used by the toolbar's system commands (Back, Start, and so
+    // on), which act on the foreground window: the toolbar never activates, so that is still the
+    // window the user was in.
+    bool SendKeys(std::initializer_list<WORD> keys)
+    {
+        std::vector<INPUT> inputs;
+        inputs.reserve(keys.size() * 2);
+        for (const WORD vk : keys)
+        {
+            INPUT down{};
+            down.type = INPUT_KEYBOARD;
+            down.ki.wVk = vk;
+            down.ki.dwExtraInfo = INJECTION_TAG;
+            inputs.push_back(down);
+        }
+        for (auto it = std::rbegin(keys); it != std::rend(keys); ++it)
+        {
+            INPUT up{};
+            up.type = INPUT_KEYBOARD;
+            up.ki.wVk = *it;
+            up.ki.dwFlags = KEYEVENTF_KEYUP;
+            up.ki.dwExtraInfo = INJECTION_TAG;
+            inputs.push_back(up);
+        }
+        const UINT sent = SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT));
+        if (sent != inputs.size())
+        {
+            Logger::warn(L"DwellClick toolbar key injection was blocked, error: {}", GetLastError());
+            return false;
+        }
+        return true;
+    }
+
+    // Windows 11 is Windows 10.0 from build 22000 (the same check common/utils/package.h makes,
+    // without pulling in its packaging dependencies).
+    bool IsWindows11OrGreater()
+    {
+        OSVERSIONINFOEXW version{};
+        version.dwOSVersionInfoSize = sizeof(version);
+        version.dwMajorVersion = HIBYTE(_WIN32_WINNT_WIN10);
+        version.dwMinorVersion = LOBYTE(_WIN32_WINNT_WIN10);
+        version.dwBuildNumber = 22000;
+        DWORDLONG mask = 0;
+        VER_SET_CONDITION(mask, VER_MAJORVERSION, VER_GREATER_EQUAL);
+        VER_SET_CONDITION(mask, VER_MINORVERSION, VER_GREATER_EQUAL);
+        VER_SET_CONDITION(mask, VER_BUILDNUMBER, VER_GREATER_EQUAL);
+        return VerifyVersionInfoW(&version, VER_MAJORVERSION | VER_MINORVERSION | VER_BUILDNUMBER, mask) != FALSE;
+    }
+
     // Production injector: a tagged SendInput. Lives behind the engine's IClickInjector so the
     // state machine can be unit tested without Win32.
     class WinInjector : public dwellclick::IClickInjector
@@ -205,6 +268,13 @@ namespace
                 inputs[count].mi.dwExtraInfo = INJECTION_TAG;
                 ++count;
             };
+            auto addKey = [&](WORD vk, bool up) {
+                inputs[count].type = INPUT_KEYBOARD;
+                inputs[count].ki.wVk = vk;
+                inputs[count].ki.dwFlags = up ? KEYEVENTF_KEYUP : 0;
+                inputs[count].ki.dwExtraInfo = INJECTION_TAG;
+                ++count;
+            };
 
             switch (kind)
             {
@@ -213,6 +283,22 @@ namespace
                 // One wheel notch at the pointer; sign selects the direction.
                 add(MOUSEEVENTF_WHEEL);
                 inputs[0].mi.mouseData = kind == dwellclick::ClickKind::ScrollUp ? WHEEL_DELTA : static_cast<DWORD>(-WHEEL_DELTA);
+                break;
+            case dwellclick::ClickKind::ScrollLeft:
+            case dwellclick::ClickKind::ScrollRight:
+                // One horizontal wheel notch; a positive delta scrolls right.
+                add(MOUSEEVENTF_HWHEEL);
+                inputs[0].mi.mouseData = kind == dwellclick::ClickKind::ScrollRight ? WHEEL_DELTA : static_cast<DWORD>(-WHEEL_DELTA);
+                break;
+            case dwellclick::ClickKind::ZoomIn:
+            case dwellclick::ClickKind::ZoomOut:
+                // Ctrl plus one wheel notch, the zoom gesture browsers, Office, Explorer, and
+                // most viewers share. Ctrl is pressed and released in the same batch so it is
+                // never left down.
+                addKey(VK_CONTROL, false);
+                add(MOUSEEVENTF_WHEEL);
+                inputs[1].mi.mouseData = kind == dwellclick::ClickKind::ZoomIn ? WHEEL_DELTA : static_cast<DWORD>(-WHEEL_DELTA);
+                addKey(VK_CONTROL, true);
                 break;
             case dwellclick::ClickKind::RightClick:
                 add(MOUSEEVENTF_RIGHTDOWN);
@@ -292,6 +378,17 @@ private:
     std::atomic<bool> m_toolbarButtonScrollUp{ true };
     std::atomic<bool> m_toolbarButtonScrollDown{ true };
     std::atomic<bool> m_toolbarButtonOpenSettings{ true };
+    std::atomic<int> m_toolbarPosition{ 50 }; // percent along the edge
+    std::atomic<int> m_toolbarStyle{ 0 }; // 0 = docked bar, 1 = floating button with large menu
+    std::atomic<bool> m_toolbarButtonScrollLeft{ false };
+    std::atomic<bool> m_toolbarButtonScrollRight{ false };
+    std::atomic<bool> m_toolbarButtonZoomIn{ false };
+    std::atomic<bool> m_toolbarButtonZoomOut{ false };
+    std::atomic<bool> m_toolbarButtonBack{ false };
+    std::atomic<bool> m_toolbarButtonStart{ false };
+    std::atomic<bool> m_toolbarButtonShowDesktop{ false };
+    std::atomic<bool> m_toolbarButtonTaskView{ false };
+    std::atomic<bool> m_toolbarButtonNotifications{ false };
 
     // The engine is not thread-safe, so set_config (runner thread) never touches it directly.
     // It raises this flag instead, and the hook thread's poll loop consumes it and applies the
@@ -341,6 +438,10 @@ private:
     void HookThreadMain();
     void HandleMouseMessage(WPARAM wParam, const MSLLHOOKSTRUCT* data);
     void HandleToolbarCommand(dwellclick::ToolbarCommand command);
+
+    // Whether the cycle shortcut may land on an action: the default action always, otherwise
+    // only an action whose toolbar button is switched on in Settings.
+    bool IsActionOffered(dwellclick::DwellAction action) const;
 
     static LRESULT CALLBACK MouseHookProc(int nCode, WPARAM wParam, LPARAM lParam);
 
@@ -606,7 +707,9 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
     readInt(JSON_KEY_POST_ACTION_TOLERANCE_PIXELS, m_postActionTolerancePixels, 0, MAX_TOLERANCE_PIXELS);
     readBool(JSON_KEY_REVERT_TO_DEFAULT_AFTER_ACTION, m_revertToDefaultAfterAction);
     readBool(JSON_KEY_SHOW_TOOLBAR, m_showToolbar);
-    readInt(JSON_KEY_TOOLBAR_SIDE, m_toolbarSide, 0, 1);
+    readInt(JSON_KEY_TOOLBAR_SIDE, m_toolbarSide, 0, 3);
+    readInt(JSON_KEY_TOOLBAR_POSITION, m_toolbarPosition, 0, 100);
+    readInt(JSON_KEY_TOOLBAR_STYLE, m_toolbarStyle, 0, 1);
     readBool(JSON_KEY_SHOW_COUNTDOWN, m_showCountdown);
     readInt(JSON_KEY_OVERLAY_SIZE, m_overlaySize, 0, 2);
     readBool(JSON_KEY_INDICATOR_USE_ACCENT_COLOR, m_indicatorUseAccentColor);
@@ -619,6 +722,15 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
     readBool(JSON_KEY_TOOLBAR_BUTTON_SCROLL_UP, m_toolbarButtonScrollUp);
     readBool(JSON_KEY_TOOLBAR_BUTTON_SCROLL_DOWN, m_toolbarButtonScrollDown);
     readBool(JSON_KEY_TOOLBAR_BUTTON_OPEN_SETTINGS, m_toolbarButtonOpenSettings);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_SCROLL_LEFT, m_toolbarButtonScrollLeft);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_SCROLL_RIGHT, m_toolbarButtonScrollRight);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_ZOOM_IN, m_toolbarButtonZoomIn);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_ZOOM_OUT, m_toolbarButtonZoomOut);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_BACK, m_toolbarButtonBack);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_START, m_toolbarButtonStart);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_SHOW_DESKTOP, m_toolbarButtonShowDesktop);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_TASK_VIEW, m_toolbarButtonTaskView);
+    readBool(JSON_KEY_TOOLBAR_BUTTON_NOTIFICATIONS, m_toolbarButtonNotifications);
 
     // Same helper and "#RRGGBB" format as Mouse Highlighter's colors. A malformed string keeps
     // the previous value.
@@ -789,9 +901,20 @@ void DwellClick::HookThreadMain()
             {
                 m_engine.ReleaseDrag();
             }
-            // Every action, in enum order, wrapping.
-            const int next = (static_cast<int>(m_engine.NextAction()) + 1) % (static_cast<int>(dwellclick::DwellAction::ScrollDown) + 1);
-            m_engine.SetNextAction(static_cast<dwellclick::DwellAction>(next));
+            // The next offered action in enum order, wrapping. An action switched off in
+            // Settings is skipped, so the shortcut only visits what the toolbar offers plus the
+            // default action.
+            const int count = static_cast<int>(dwellclick::LastDwellAction) + 1;
+            const int current = static_cast<int>(m_engine.NextAction());
+            for (int step = 1; step < count; ++step)
+            {
+                const auto candidate = static_cast<dwellclick::DwellAction>((current + step) % count);
+                if (IsActionOffered(candidate))
+                {
+                    m_engine.SetNextAction(candidate);
+                    break;
+                }
+            }
         }
 
         const dwellclick::Settings snapshot = SettingsSnapshot();
@@ -804,6 +927,8 @@ void DwellClick::HookThreadMain()
             dwellclick::OverlaySettings overlaySettings;
             overlaySettings.showToolbar = m_showToolbar.load();
             overlaySettings.toolbarSide = m_toolbarSide.load();
+            overlaySettings.toolbarPosition = m_toolbarPosition.load();
+            overlaySettings.toolbarStyle = m_toolbarStyle.load();
             overlaySettings.showCountdown = m_showCountdown.load();
             overlaySettings.overlaySize = m_overlaySize.load();
             overlaySettings.indicatorUseAccentColor = m_indicatorUseAccentColor.load();
@@ -816,6 +941,15 @@ void DwellClick::HookThreadMain()
             overlaySettings.buttonScrollUp = m_toolbarButtonScrollUp.load();
             overlaySettings.buttonScrollDown = m_toolbarButtonScrollDown.load();
             overlaySettings.buttonOpenSettings = m_toolbarButtonOpenSettings.load();
+            overlaySettings.buttonScrollLeft = m_toolbarButtonScrollLeft.load();
+            overlaySettings.buttonScrollRight = m_toolbarButtonScrollRight.load();
+            overlaySettings.buttonZoomIn = m_toolbarButtonZoomIn.load();
+            overlaySettings.buttonZoomOut = m_toolbarButtonZoomOut.load();
+            overlaySettings.buttonBack = m_toolbarButtonBack.load();
+            overlaySettings.buttonStartMenu = m_toolbarButtonStart.load();
+            overlaySettings.buttonShowDesktop = m_toolbarButtonShowDesktop.load();
+            overlaySettings.buttonTaskView = m_toolbarButtonTaskView.load();
+            overlaySettings.buttonNotifications = m_toolbarButtonNotifications.load();
             m_overlay.ApplySettings(overlaySettings);
             m_overlay.TickToolbar(cursor, tick, snapshot.dwellTimeMs);
         }
@@ -824,7 +958,9 @@ void DwellClick::HookThreadMain()
         // and the engine stays locked, so a dwell there selects a button instead of firing
         // the current action onto the toolbar. This is also what keeps the resume button
         // reachable while paused: pause stops the engine, never the toolbar.
-        const bool overToolbar = overlayCreated && m_overlay.IsPointOverToolbar(cursor);
+        // The floating style's large menu counts as the toolbar wherever the pointer is: while
+        // it is open the user is choosing, and nothing should be clicked behind it.
+        const bool overToolbar = overlayCreated && (m_overlay.IsPointOverToolbar(cursor) || m_overlay.IsMenuOpen());
         if (overToolbar)
         {
             m_engine.LockUntilMove();
@@ -879,31 +1015,35 @@ void DwellClick::HandleToolbarCommand(dwellclick::ToolbarCommand command)
         m_engine.SetNextAction(action);
     };
 
+    if (const auto action = dwellclick::ActionFor(command))
+    {
+        select(*action);
+        return;
+    }
+
     switch (command)
     {
     case ToolbarCommand::TogglePause:
         m_engine.SetPaused(!m_engine.IsPaused());
         break;
-    case ToolbarCommand::SelectLeftClick:
-        select(DwellAction::LeftClick);
+    case ToolbarCommand::Back:
+        // The browser Back key: Edge, Chrome, Firefox, Explorer, Settings, and most apps with
+        // history treat it as Back. A mouse back button would land on the toolbar instead.
+        SendKeys({ VK_BROWSER_BACK });
         break;
-    case ToolbarCommand::SelectDoubleClick:
-        select(DwellAction::DoubleClick);
+    case ToolbarCommand::StartMenu:
+        SendKeys({ VK_LWIN });
         break;
-    case ToolbarCommand::SelectRightClick:
-        select(DwellAction::RightClick);
+    case ToolbarCommand::ShowDesktop:
+        SendKeys({ VK_LWIN, 'D' });
         break;
-    case ToolbarCommand::SelectMiddleClick:
-        select(DwellAction::MiddleClick);
+    case ToolbarCommand::TaskView:
+        SendKeys({ VK_LWIN, VK_TAB });
         break;
-    case ToolbarCommand::SelectDrag:
-        select(DwellAction::Drag);
-        break;
-    case ToolbarCommand::SelectScrollUp:
-        select(DwellAction::ScrollUp);
-        break;
-    case ToolbarCommand::SelectScrollDown:
-        select(DwellAction::ScrollDown);
+    case ToolbarCommand::Notifications:
+        // Windows 11 opens the notification center with Win+N; Windows 10's equivalent is
+        // the Action Center on Win+A.
+        SendKeys({ VK_LWIN, static_cast<WORD>(IsWindows11OrGreater() ? 'N' : 'A') });
         break;
     case ToolbarCommand::OpenSettings:
     {
@@ -919,6 +1059,42 @@ void DwellClick::HandleToolbarCommand(dwellclick::ToolbarCommand command)
     default:
         // Collapse is handled inside the overlay; nothing reaches the engine.
         break;
+    }
+}
+
+bool DwellClick::IsActionOffered(dwellclick::DwellAction action) const
+{
+    using dwellclick::DwellAction;
+    if (static_cast<int>(action) == m_defaultAction.load())
+    {
+        return true;
+    }
+    switch (action)
+    {
+    case DwellAction::LeftClick:
+        return m_toolbarButtonLeftClick.load();
+    case DwellAction::RightClick:
+        return m_toolbarButtonRightClick.load();
+    case DwellAction::DoubleClick:
+        return m_toolbarButtonDoubleClick.load();
+    case DwellAction::MiddleClick:
+        return m_toolbarButtonMiddleClick.load();
+    case DwellAction::Drag:
+        return m_toolbarButtonDrag.load();
+    case DwellAction::ScrollUp:
+        return m_toolbarButtonScrollUp.load();
+    case DwellAction::ScrollDown:
+        return m_toolbarButtonScrollDown.load();
+    case DwellAction::ScrollLeft:
+        return m_toolbarButtonScrollLeft.load();
+    case DwellAction::ScrollRight:
+        return m_toolbarButtonScrollRight.load();
+    case DwellAction::ZoomIn:
+        return m_toolbarButtonZoomIn.load();
+    case DwellAction::ZoomOut:
+        return m_toolbarButtonZoomOut.load();
+    default:
+        return false;
     }
 }
 

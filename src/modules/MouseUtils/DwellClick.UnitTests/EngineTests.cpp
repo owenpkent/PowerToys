@@ -678,4 +678,73 @@ namespace DwellClickEngineTests
             Assert::AreEqual(static_cast<size_t>(1), injector.Count());
         }
     };
+
+    TEST_CLASS (HorizontalScrollAndZoomActions)
+    {
+    public:
+        TEST_METHOD (EachNewActionMapsToItsOwnClickKind)
+        {
+            const std::pair<DwellAction, ClickKind> cases[] = {
+                { DwellAction::ScrollLeft, ClickKind::ScrollLeft },
+                { DwellAction::ScrollRight, ClickKind::ScrollRight },
+                { DwellAction::ZoomIn, ClickKind::ZoomIn },
+                { DwellAction::ZoomOut, ClickKind::ZoomOut },
+            };
+            for (const auto& [action, kind] : cases)
+            {
+                FakeInjector injector;
+                Engine e(injector);
+                const Settings s = DefaultSettings();
+
+                e.SetNextAction(action);
+                Arm(e, s);
+                Assert::IsTrue(e.Poll(100, s).fired);
+                Assert::IsTrue(injector.calls[0].kind == kind);
+            }
+        }
+
+        TEST_METHOD (HorizontalScrollAndZoomAutoRepeatLikeVerticalScroll)
+        {
+            for (const DwellAction action : { DwellAction::ScrollLeft, DwellAction::ScrollRight, DwellAction::ZoomIn, DwellAction::ZoomOut })
+            {
+                FakeInjector injector;
+                Engine e(injector);
+                const Settings s = DefaultSettings();
+
+                e.SetNextAction(action);
+                Arm(e, s);
+
+                // One notch per dwell period while the pointer keeps resting: no lock after firing.
+                Assert::IsTrue(e.Poll(100, s).fired);
+                Assert::IsTrue(e.Poll(200, s).fired);
+                Assert::IsTrue(e.Poll(300, s).fired);
+                Assert::AreEqual(static_cast<size_t>(3), injector.Count());
+            }
+        }
+
+        TEST_METHOD (HorizontalScrollAndZoomNeverRevert)
+        {
+            for (const DwellAction action : { DwellAction::ScrollLeft, DwellAction::ScrollRight, DwellAction::ZoomIn, DwellAction::ZoomOut })
+            {
+                FakeInjector injector;
+                Engine e(injector);
+                Settings s = DefaultSettings();
+                s.revertToDefaultAfterAction = true; // even with revert on, the mode sticks
+
+                e.SetNextAction(action);
+                Arm(e, s);
+                Assert::IsTrue(e.Poll(100, s).fired);
+                Assert::IsTrue(e.NextAction() == action);
+            }
+        }
+
+        TEST_METHOD (TheLastActionIsTheEndOfTheEnum)
+        {
+            // The cycle shortcut and the fuzz target walk the actions up to LastDwellAction, so it
+            // must name the final enumerator; appending an action without moving it would hide
+            // the new action from both.
+            Assert::IsTrue(LastDwellAction == DwellAction::ZoomOut);
+            Assert::AreEqual(10, static_cast<int>(LastDwellAction));
+        }
+    };
 }

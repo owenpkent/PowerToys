@@ -69,6 +69,120 @@ namespace DwellClickToolbarTests
         }
     };
 
+    TEST_CLASS (ToolbarOrientationAndWrapping)
+    {
+    public:
+        TEST_METHOD (HorizontalLayoutSwapsWidthAndHeight)
+        {
+            ToolbarModel model;
+            const int vWidth = model.Width();
+            const int vHeight = model.Height();
+
+            model.SetLayout(ToolbarOrientation::Horizontal, 0);
+            Assert::AreEqual(vHeight, model.Width());
+            Assert::AreEqual(vWidth, model.Height());
+
+            // Buttons now run left to right on one row.
+            const ToolbarRect first = model.ButtonRect(0);
+            const ToolbarRect second = model.ButtonRect(1);
+            Assert::AreEqual(first.y, second.y);
+            Assert::AreEqual(first.x + model.ButtonSize() + ToolbarModel::Gap, second.x);
+        }
+
+        TEST_METHOD (ALongBarWrapsIntoASecondColumn)
+        {
+            ToolbarModel model; // 10 buttons
+            model.SetLayout(ToolbarOrientation::Vertical, 4);
+
+            Assert::AreEqual(4, model.ButtonsPerLine());
+            Assert::AreEqual(3, model.LineCount());
+            const int step = model.ButtonSize() + ToolbarModel::Gap;
+            Assert::AreEqual(ToolbarModel::Padding * 2 + 3 * model.ButtonSize() + 2 * ToolbarModel::Gap, model.Width());
+            Assert::AreEqual(ToolbarModel::Padding * 2 + 4 * model.ButtonSize() + 3 * ToolbarModel::Gap, model.Height());
+
+            // Button 4 starts the second column, level with button 0.
+            Assert::AreEqual(model.ButtonRect(0).y, model.ButtonRect(4).y);
+            Assert::AreEqual(model.ButtonRect(0).x + step, model.ButtonRect(4).x);
+
+            // Every visible button is still hit at its own center.
+            for (int i = 0; i < model.VisibleButtonCount(); ++i)
+            {
+                Assert::AreEqual(i, model.HitTest(CenterOf(model, i)));
+            }
+        }
+
+        TEST_METHOD (ButtonsThatFitNeverDropsBelowOne)
+        {
+            ToolbarModel model;
+            const int step = model.ButtonSize() + ToolbarModel::Gap;
+            Assert::AreEqual(1, model.ButtonsThatFit(0));
+            Assert::AreEqual(1, model.ButtonsThatFit(-500));
+            // Exactly three buttons with their padding fit; one unit less fits two.
+            const int three = ToolbarModel::Padding * 2 + 3 * model.ButtonSize() + 2 * ToolbarModel::Gap;
+            Assert::AreEqual(3, model.ButtonsThatFit(three));
+            Assert::AreEqual(2, model.ButtonsThatFit(three - 1));
+            Assert::AreEqual(3, model.ButtonsThatFit(three + step - 1));
+        }
+
+        TEST_METHOD (ACollapsedBarIsOneButtonWhateverTheLayout)
+        {
+            ToolbarModel model;
+            model.SetLayout(ToolbarOrientation::Horizontal, 3);
+            model.SetCollapsed(true);
+            Assert::AreEqual(1, model.ButtonsPerLine());
+            Assert::AreEqual(1, model.LineCount());
+            Assert::AreEqual(ToolbarModel::Padding * 2 + model.ButtonSize(), model.Width());
+            Assert::AreEqual(ToolbarModel::Padding * 2 + model.ButtonSize(), model.Height());
+        }
+
+        TEST_METHOD (SetLayoutResetsARunningHover)
+        {
+            ToolbarModel model;
+            model.OnPointer(CenterOf(model, 2), true, 0, 100);
+            Assert::AreEqual(2, model.HoveredIndex());
+            model.SetLayout(ToolbarOrientation::Horizontal, 0);
+            Assert::AreEqual(-1, model.HoveredIndex());
+        }
+    };
+
+    TEST_CLASS (ToolbarCommandActions)
+    {
+    public:
+        TEST_METHOD (SelectCommandsMapToTheirActions)
+        {
+            Assert::IsTrue(ActionFor(ToolbarCommand::SelectScrollLeft) == DwellAction::ScrollLeft);
+            Assert::IsTrue(ActionFor(ToolbarCommand::SelectScrollRight) == DwellAction::ScrollRight);
+            Assert::IsTrue(ActionFor(ToolbarCommand::SelectZoomIn) == DwellAction::ZoomIn);
+            Assert::IsTrue(ActionFor(ToolbarCommand::SelectZoomOut) == DwellAction::ZoomOut);
+            Assert::IsTrue(ActionFor(ToolbarCommand::SelectDrag) == DwellAction::Drag);
+            Assert::IsTrue(ActionFor(ToolbarCommand::SelectLeftClick) == DwellAction::LeftClick);
+        }
+
+        TEST_METHOD (SystemAndChromeCommandsChooseNoAction)
+        {
+            for (const ToolbarCommand command : { ToolbarCommand::ToggleCollapse, ToolbarCommand::TogglePause, ToolbarCommand::OpenSettings, ToolbarCommand::Back, ToolbarCommand::StartMenu, ToolbarCommand::ShowDesktop, ToolbarCommand::TaskView, ToolbarCommand::Notifications })
+            {
+                Assert::IsFalse(ActionFor(command).has_value());
+            }
+        }
+
+        TEST_METHOD (EveryActionHasASelectCommand)
+        {
+            // Every DwellAction can be chosen from the toolbar, so none is reachable only by
+            // the cycle shortcut.
+            for (int a = 0; a <= static_cast<int>(LastDwellAction); ++a)
+            {
+                bool found = false;
+                for (int c = 0; c <= static_cast<int>(ToolbarCommand::Notifications); ++c)
+                {
+                    const auto action = ActionFor(static_cast<ToolbarCommand>(c));
+                    found = found || (action && static_cast<int>(*action) == a);
+                }
+                Assert::IsTrue(found);
+            }
+        }
+    };
+
     TEST_CLASS (ToolbarCustomization)
     {
     public:

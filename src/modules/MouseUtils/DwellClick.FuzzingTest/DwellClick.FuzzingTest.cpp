@@ -138,6 +138,18 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             }
             (void)toolbar.HoverProgress(tick, settings.dwellTimeMs);
             (void)toolbar.HitTest(pt);
+
+            // Re-flow the bar: either orientation, any line length (including 0, negative, and
+            // more than the button count), and a fit computed from an arbitrary edge length.
+            if (op & 0x08u)
+            {
+                const int perLine = static_cast<int>(static_cast<int8_t>(r.u8()));
+                toolbar.SetLayout((op & 0x04u) ? ToolbarOrientation::Horizontal : ToolbarOrientation::Vertical, perLine);
+                (void)toolbar.ButtonsThatFit(static_cast<int>(r.u32()));
+                (void)toolbar.Width();
+                (void)toolbar.Height();
+                (void)toolbar.ButtonRect(toolbar.VisibleButtonCount() - 1);
+            }
         }
 
         switch (op & 0x07u)
@@ -149,8 +161,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             (void)engine.Poll(tick, settings);
             break;
         case 2:
-            // Bits 3-4 pick the action; the settings mutation above covers out-of-range values.
-            engine.SetNextAction(static_cast<DwellAction>((op >> 3) & 0x07u));
+            // Every named action plus one past the end; the settings mutation above covers
+            // further out-of-range values.
+            engine.SetNextAction(static_cast<DwellAction>(r.u8() % (static_cast<int>(LastDwellAction) + 2)));
             break;
         case 3:
             engine.SetPaused((op & 0x08u) != 0u);
