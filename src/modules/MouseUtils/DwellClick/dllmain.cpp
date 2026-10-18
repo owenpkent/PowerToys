@@ -303,6 +303,12 @@ private:
     std::atomic<bool> m_pauseToggleRequested{ false };
     std::atomic<bool> m_cycleActionRequested{ false };
 
+    // The default action last handed to the engine. Written in enable() before the hook thread
+    // starts and afterwards only on the hook thread, so it needs no synchronization. The poll loop
+    // compares against it so that only a real change of the default replaces the next action; an
+    // unrelated settings change must not discard an action picked on the toolbar.
+    dwellclick::DwellAction m_appliedDefaultAction = dwellclick::DwellAction::LeftClick;
+
     // The shortcuts. Only touched on the runner thread (constructor, set_config, get_hotkeys),
     // so they need no synchronization.
     Hotkey m_pauseHotkey = { .win = true, .ctrl = false, .shift = true, .alt = false, .key = DEFAULT_PAUSE_HOTKEY_VK };
@@ -425,6 +431,11 @@ public:
             m_engine.OnMove({ pt.x, pt.y }, tick, SettingsSnapshot());
         }
         m_engine.ResetTransient(tick);
+
+        // The engine only falls back to the default after an action when revert is on, so seed
+        // it here; otherwise the first dwell (or every dwell, with revert off) is a left click.
+        m_appliedDefaultAction = SettingsSnapshot().defaultAction;
+        m_engine.SetNextAction(m_appliedDefaultAction);
 
         // Before the hook thread exists, so the poll never sees a half-built buffer.
         m_clickSound = BuildClickSound();
@@ -748,6 +759,20 @@ void DwellClick::HookThreadMain()
         if (m_relockRequested.exchange(false))
         {
             m_engine.LockUntilMove();
+
+            // A changed default takes effect on the next dwell, the way choosing it on the
+            // toolbar would. Release a drag in progress first so the switch never orphans the
+            // held button.
+            const dwellclick::DwellAction defaultAction = SettingsSnapshot().defaultAction;
+            if (defaultAction != m_appliedDefaultAction)
+            {
+                m_appliedDefaultAction = defaultAction;
+                if (m_engine.IsDragging())
+                {
+                    m_engine.ReleaseDrag();
+                }
+                m_engine.SetNextAction(defaultAction);
+            }
         }
 
         if (m_pauseToggleRequested.exchange(false))
