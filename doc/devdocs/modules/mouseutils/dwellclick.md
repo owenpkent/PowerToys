@@ -117,6 +117,11 @@ a one-off right click does not silently turn every later dwell into a right clic
 because that is what shipping dwell tools do: GNOME Hover Click and Dwell Clicker 2 both revert
 unconditionally, and macOS exposes it as an "Auto revert to left click" toggle.
 
+Reverting is the engine's only path to `defaultAction`: a new engine's next action is `LeftClick`.
+The module therefore seeds the configured default on enable and applies a changed one itself (see
+[The module layer](#the-module-layer)). Without that, a non-left default would never be used with
+revert off, and the first dwell after enabling would be a left click even with revert on.
+
 `SetNextAction` locks until the pointer moves. Without that, the time already banked against the
 previous action would fire the newly chosen one almost immediately, on a target the user was not
 aiming at.
@@ -159,8 +164,13 @@ engine, following the Mouse Button Lock module closely:
   it, the same as their physical counterparts.
 - **The engine stays single-threaded.** All engine calls happen on the hook thread while it runs.
   The runner thread touches the engine only before the thread starts (`enable` seeds the pointer
-  position and calls `ResetTransient`) or after it joins (`disable`). A live settings change
-  (`set_config`) raises an atomic flag that the poll loop consumes into `LockUntilMove`.
+  position, calls `ResetTransient`, and sets the next action to the configured default) or after
+  it joins (`disable`). A live settings change (`set_config`) raises an atomic flag that the poll
+  loop consumes into `LockUntilMove`.
+- **A changed default action applies on the next dwell.** On that same re-lock path the poll loop
+  compares the configured default with the one it last applied (`m_appliedDefaultAction`). Only
+  when it differs does it release a held drag and call `SetNextAction`, so an unrelated change
+  (the dwell time, say) never discards an action the user picked on the toolbar.
 - **Settings are clamped on read.** The dwell time is clamped to 100 ms - 60 s (below 100 ms every
   rest becomes a click, the exact Midas failure the engine is built to avoid), tolerances to
   0 - 10000 px, and an unknown `default_action` value falls back to `LeftClick` rather than
@@ -321,6 +331,58 @@ Beyond the unit tests:
   pattern-driven UIA interactions cannot fire stray dwells.
 - The DSC suite has a `DwellClick` module test
   ([SettingsResourceDwellClickModuleTest.cs](/src/dsc/v3/PowerToys.DSC.UnitTests/SettingsResourceTests/SettingsResourceDwellClickModuleTest.cs)).
+
+### UI tests
+
+The four `DwellClick` UI tests:
+
+| Test | What it proves |
+|---|---|
+| `SectionNavigationAndModuleLifecycleAreAvailable` | The settings group is reachable; disabling the module stops a dwell from starting the seeded Drag, and re-enabling restores it. |
+| `ActionAndRevertPersistAcrossRestart` | The action, revert, toolbar, overlay-size, and countdown options persist to `settings.json` and reload after a Settings restart. |
+| `DwellTimeAndTolerancesPersistAtBoundaries` | The dwell time and both tolerances persist at their minimum and maximum, and the dwell time reloads after restart. |
+| `ADwellCompletesADragAndASecondDwellReleasesIt` | A dwell presses and holds the left button, a second dwell releases it, and the engine re-arms for another drag. |
+
+They passed 4/4 on a host desktop against a local x64 Debug build on 2026-10-18. They have not yet
+run on the Windows 10/11 VMs from the
+[local-VM UI-tests skill](/.github/skills/ui-tests-local-vm/SKILL.md). To run them on a host
+desktop:
+
+1. Build the module, the runner, Settings, and the test project. A Debug runner only warns about
+   module DLLs that are not built, so these four are enough. Build the runner with
+   `/p:SolutionDir=<repo root>\`: built on its own it writes `PowerToys.exe` under `src\runner\x64`,
+   and the harness then silently falls back to an installed PowerToys that has no Dwell Click.
+
+   ```
+   tools\build\build.ps1 -Platform x64 -Configuration Debug -Path <repo>\src\modules\MouseUtils\DwellClick '/restore' '/p:RestorePackagesConfig=true'
+   tools\build\build.ps1 -Platform x64 -Configuration Debug -Path <repo>\src\runner '/restore' '/p:RestorePackagesConfig=true' '/p:SolutionDir=<repo>\'
+   tools\build\build.ps1 -Platform x64 -Configuration Debug -Path <repo>\src\settings-ui\Settings.UI '/restore'
+   tools\build\build.ps1 -Platform x64 -Configuration Debug -Path <repo>\src\modules\MouseUtils\MouseUtils.UITests.Next '/restore'
+   ```
+
+2. Install the pinned winappcli with `.pipelines\InstallWinAppCli.ps1 -Platform x64` and set
+   `WINAPP_CLI_PATH` to the `winapp.exe` it prints.
+3. Exit any running PowerToys, and back up the `*.json` files under
+   `%LOCALAPPDATA%\Microsoft\PowerToys`. The harness restores the files it edits, but the dev
+   build's Runner and Settings also migrate other modules' settings and create folders for modules
+   an installed PowerToys may not know. Restore the backup afterwards.
+4. Run the suite without touching the mouse or keyboard:
+
+   ```
+   x64\Debug\tests\MouseUtils.UITests.Next\net10.0-windows10.0.26100.0\MouseUtils.UITests.Next.exe --filter TestCategory=DwellClick --report-trx --results-directory <dir> --timeout 20m
+   ```
+
+Harness behavior the suite works around, worth knowing before adding tests:
+
+- `Click`, `ComboBox.Select`, and `CheckBox.SetCheck` click with the real mouse at the control's UIA
+  bounds. A Settings control below the fold reports `IsOffscreen=false` with bounds outside the
+  window, so the click misses. Call `ScrollIntoView()` and `Find` the control again first.
+- winappcli 0.3.2 cannot read a WinUI `Slider`'s value (`get-value` finds none, so `Slider.Value`
+  returns 0). The test reads the label beside the dwell-time slider instead
+  (`MouseUtils_DwellClickDwellTimeLabelId`), which binds the same property.
+- Settings rewrites `settings.json` on every change, so polling it can hit an `IOException` or a
+  half-written file. The persistence asserts pass `shouldRetryException` to
+  `WaitHelper.WaitForStable`.
 
 ## Not yet implemented
 
