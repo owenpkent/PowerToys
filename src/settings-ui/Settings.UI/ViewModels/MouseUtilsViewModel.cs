@@ -174,6 +174,8 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             // the property setters are safe (covers a "properties": null payload that would
             // otherwise throw here).
             DwellClickSettingsConfig.Properties ??= new DwellClickProperties();
+            DwellClickSettingsConfig.Properties.ActivationShortcut ??= DwellClickSettingsConfig.Properties.DefaultActivationShortcut;
+            DwellClickSettingsConfig.Properties.CycleActionShortcut ??= DwellClickSettingsConfig.Properties.DefaultCycleActionShortcut;
             DwellClickSettingsConfig.Properties.DwellTimeMs ??= new IntProperty(1200);
             DwellClickSettingsConfig.Properties.MoveTolerancePixels ??= new IntProperty(10);
             DwellClickSettingsConfig.Properties.PostActionTolerancePixels ??= new IntProperty(10);
@@ -183,6 +185,9 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             DwellClickSettingsConfig.Properties.ToolbarSide ??= new IntProperty(0);
             DwellClickSettingsConfig.Properties.ShowCountdown ??= new BoolProperty(true);
             DwellClickSettingsConfig.Properties.OverlaySize ??= new IntProperty(1);
+            DwellClickSettingsConfig.Properties.IndicatorUseAccentColor ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.IndicatorColor ??= new StringProperty("#0078D4");
+            DwellClickSettingsConfig.Properties.PlaySound ??= new BoolProperty(false);
             DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick ??= new BoolProperty(true);
             DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick ??= new BoolProperty(true);
             DwellClickSettingsConfig.Properties.ToolbarButtonRightClick ??= new BoolProperty(true);
@@ -201,6 +206,10 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             _dwellClickToolbarSide = DwellClickSettingsConfig.Properties.ToolbarSide.Value;
             _dwellClickShowCountdown = DwellClickSettingsConfig.Properties.ShowCountdown.Value;
             _dwellClickOverlaySize = DwellClickSettingsConfig.Properties.OverlaySize.Value;
+            _dwellClickIndicatorUseAccentColor = DwellClickSettingsConfig.Properties.IndicatorUseAccentColor.Value;
+            string dwellClickIndicatorColor = DwellClickSettingsConfig.Properties.IndicatorColor.Value;
+            _dwellClickIndicatorColor = !string.IsNullOrEmpty(dwellClickIndicatorColor) ? dwellClickIndicatorColor : "#0078D4";
+            _dwellClickPlaySound = DwellClickSettingsConfig.Properties.PlaySound.Value;
             _dwellClickToolbarButtonLeftClick = DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick.Value;
             _dwellClickToolbarButtonDoubleClick = DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick.Value;
             _dwellClickToolbarButtonRightClick = DwellClickSettingsConfig.Properties.ToolbarButtonRightClick.Value;
@@ -328,6 +337,9 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                     GlidingCursorActivationShortcut],
                 [MouseJumpSettings.ModuleName] = [MouseJumpActivationShortcut],
                 [CursorWrapSettings.ModuleName] = [CursorWrapActivationShortcut],
+                [DwellClickSettings.ModuleName] = [
+                    DwellClickActivationShortcut,
+                    DwellClickCycleActionShortcut],
             };
 
             return hotkeysDict;
@@ -1667,6 +1679,40 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             get => _dwellClickEnabledStateIsGPOConfigured;
         }
 
+        public HotkeySettings DwellClickActivationShortcut
+        {
+            get
+            {
+                return DwellClickSettingsConfig.Properties.ActivationShortcut;
+            }
+
+            set
+            {
+                if (DwellClickSettingsConfig.Properties.ActivationShortcut != value)
+                {
+                    DwellClickSettingsConfig.Properties.ActivationShortcut = value ?? DwellClickSettingsConfig.Properties.DefaultActivationShortcut;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public HotkeySettings DwellClickCycleActionShortcut
+        {
+            get
+            {
+                return DwellClickSettingsConfig.Properties.CycleActionShortcut;
+            }
+
+            set
+            {
+                if (DwellClickSettingsConfig.Properties.CycleActionShortcut != value)
+                {
+                    DwellClickSettingsConfig.Properties.CycleActionShortcut = value ?? DwellClickSettingsConfig.Properties.DefaultCycleActionShortcut;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
         public int DwellClickDwellTimeMs
         {
             get => _dwellClickDwellTimeMs;
@@ -1774,6 +1820,60 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                 {
                     _dwellClickShowCountdown = value;
                     DwellClickSettingsConfig.Properties.ShowCountdown.Value = value;
+                    OnPropertyChanged(nameof(DwellClickIndicatorColorEnabled));
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickIndicatorUseAccentColor
+        {
+            get => _dwellClickIndicatorUseAccentColor;
+            set
+            {
+                if (value != _dwellClickIndicatorUseAccentColor)
+                {
+                    _dwellClickIndicatorUseAccentColor = value;
+                    DwellClickSettingsConfig.Properties.IndicatorUseAccentColor.Value = value;
+                    OnPropertyChanged(nameof(DwellClickIndicatorColorEnabled));
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public string DwellClickIndicatorColor
+        {
+            get
+            {
+                return _dwellClickIndicatorColor;
+            }
+
+            set
+            {
+                // The picker hands back "#AARRGGBB"; the module reads the ring color as "#RRGGBB"
+                // (the opaque form checkValidRGB accepts), so drop the alpha pair.
+                value = string.Concat("#", SettingsUtilities.ToARGBHex(value).AsSpan(3));
+                if (!value.Equals(_dwellClickIndicatorColor, StringComparison.OrdinalIgnoreCase))
+                {
+                    _dwellClickIndicatorColor = value;
+                    DwellClickSettingsConfig.Properties.IndicatorColor.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        // The custom ring color only applies while the ring is shown and the accent color is off.
+        public bool DwellClickIndicatorColorEnabled => _dwellClickShowCountdown && !_dwellClickIndicatorUseAccentColor;
+
+        public bool DwellClickPlaySound
+        {
+            get => _dwellClickPlaySound;
+            set
+            {
+                if (value != _dwellClickPlaySound)
+                {
+                    _dwellClickPlaySound = value;
+                    DwellClickSettingsConfig.Properties.PlaySound.Value = value;
                     NotifyDwellClickPropertyChanged();
                 }
             }
@@ -2019,6 +2119,9 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private int _dwellClickToolbarSide; // 0=Left edge, 1=Right edge
         private bool _dwellClickShowCountdown;
         private int _dwellClickOverlaySize; // 0=Small, 1=Medium, 2=Large
+        private bool _dwellClickIndicatorUseAccentColor;
+        private string _dwellClickIndicatorColor;
+        private bool _dwellClickPlaySound;
         private bool _dwellClickToolbarButtonLeftClick;
         private bool _dwellClickToolbarButtonDoubleClick;
         private bool _dwellClickToolbarButtonRightClick;

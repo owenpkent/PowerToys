@@ -105,6 +105,59 @@ targets are easier to rest on.
 **Values:** `0` = small, `1` = medium, `2` = large  
 **Default:** `1`
 
+### ActivationShortcut
+
+Sets the keyboard shortcut that pauses or resumes dwell clicking, so the
+pointer can rest without clicking. It does the same thing as the
+toolbar's pause button.
+
+**Type:** object
+**Properties:**
+
+- `win` (boolean) - Windows key modifier
+- `ctrl` (boolean) - Ctrl key modifier
+- `alt` (boolean) - Alt key modifier
+- `shift` (boolean) - Shift key modifier
+- `code` (integer) - Virtual key code
+- `key` (string) - Key name
+
+**Default:** `Win+Shift+W`
+
+### CycleActionShortcut
+
+Sets the keyboard shortcut that switches the next dwell action to the
+following one (left click, right click, double-click, middle click, drag,
+scroll up, scroll down, then back to left click). A drag in progress is
+released first. Takes the same object as `ActivationShortcut`.
+
+**Type:** object
+**Default:** `Win+Shift+A`
+
+### PlaySound
+
+Controls whether a short click sound plays each time a dwell action
+fires.
+
+**Type:** boolean
+**Default:** `false`
+
+### IndicatorUseAccentColor
+
+Controls whether the countdown ring uses the Windows accent color. When
+`false`, the ring uses `IndicatorColor`.
+
+**Type:** boolean
+**Default:** `true`
+
+### IndicatorColor
+
+Sets the countdown ring color used when `IndicatorUseAccentColor` is
+`false`. A malformed value is ignored and the previous color is kept.
+
+**Type:** string (hex color)
+**Format:** `"#RRGGBB"`
+**Default:** `"#0078D4"`
+
 ### ToolbarButton properties
 
 Eight booleans choose which action buttons the toolbar carries; the

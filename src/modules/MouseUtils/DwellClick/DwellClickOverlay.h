@@ -38,6 +38,11 @@ namespace dwellclick
         // this module needs room to land on them.
         int overlaySize = 1;
 
+        // The countdown ring's fill color: the Windows accent color, or indicatorColor (a
+        // COLORREF, default the brand blue) when the accent is switched off.
+        bool indicatorUseAccentColor = true;
+        COLORREF indicatorColor = RGB(0x00, 0x78, 0xD4);
+
         // Which action buttons the toolbar carries. The collapse handle and pause are always
         // present: collapse is the handle itself, and pause is the safety escape every
         // surveyed dwell tool ships.
@@ -124,6 +129,7 @@ namespace dwellclick
         RECT m_toolbarRect{};
         bool m_buttonsInitialized = false;
         bool m_indicatorVisible = false;
+        COLORREF m_accentColor = RGB(0x00, 0x78, 0xD4); // Windows accent, refreshed when a countdown starts
         double m_lastPaintedProgress = -1.0;
         int m_lastPaintedHover = -2;
         int m_lastDwellMs = 1;

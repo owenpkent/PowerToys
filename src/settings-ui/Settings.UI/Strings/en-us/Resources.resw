@@ -2888,6 +2888,29 @@ From there, simply click on one of the supported files in the File Explorer and 
     <value>Dwell Click</value>
     <comment>Dwell Click is the feature name.</comment>
   </data>
+  <data name="MouseUtils_DwellClick_ActivationShortcut.Header" xml:space="preserve">
+    <value>Pause or resume shortcut</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ActivationShortcut.Description" xml:space="preserve">
+    <value>Pauses dwell clicking so the pointer can rest without clicking. Press again to resume.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_CycleActionShortcut.Header" xml:space="preserve">
+    <value>Cycle action shortcut</value>
+  </data>
+  <data name="MouseUtils_DwellClick_CycleActionShortcut.Description" xml:space="preserve">
+    <value>Switches the next dwell action to the following one</value>
+  </data>
+  <data name="MouseUtils_DwellClick_PlaySound.Content" xml:space="preserve">
+    <value>Play a sound when a click fires</value>
+    <comment>A short click confirms each automatic action.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_IndicatorUseAccentColor.Content" xml:space="preserve">
+    <value>Use the Windows accent color for the ring</value>
+    <comment>The ring is the countdown that fills at the pointer.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_IndicatorColor.Header" xml:space="preserve">
+    <value>Ring color</value>
+  </data>
   <data name="MouseUtils_DwellClick_Options.Header" xml:space="preserve">
     <value>Timing and actions</value>
   </data>

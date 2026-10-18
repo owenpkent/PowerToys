@@ -155,6 +155,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                     MouseHighlighterSettings.ModuleName,
                     MousePointerCrosshairsSettings.ModuleName,
                     MouseJumpSettings.ModuleName,
+                    DwellClickSettings.ModuleName,
                 };
 
                 // Process in-app conflicts

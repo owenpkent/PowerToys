@@ -6,6 +6,7 @@
 #include "DwellClickOverlay.h"
 
 #include <windowsx.h>
+#include <dwmapi.h>
 
 #include <common/logger/logger.h>
 
@@ -19,6 +20,8 @@
 #pragma warning(pop)
 
 #include <cmath>
+
+#pragma comment(lib, "dwmapi.lib") // DwmGetColorizationColor
 
 namespace
 {
@@ -646,6 +649,17 @@ namespace dwellclick
             }
             return;
         }
+        if (!m_indicatorVisible)
+        {
+            // A countdown is starting: pick up the current Windows accent color, so a change
+            // in Windows settings shows from the next countdown without polling DWM per frame.
+            DWORD colorization = 0;
+            BOOL opaque = FALSE;
+            if (SUCCEEDED(DwmGetColorizationColor(&colorization, &opaque)))
+            {
+                m_accentColor = RGB((colorization >> 16) & 0xFF, (colorization >> 8) & 0xFF, colorization & 0xFF);
+            }
+        }
         PaintIndicator(pt, progress);
         if (!m_indicatorVisible)
         {
@@ -681,7 +695,8 @@ namespace dwellclick
         Gdiplus::Pen track(RING_TRACK, radius * 0.24f);
         g.DrawEllipse(&track, ring);
 
-        Gdiplus::Pen arc(ACCENT, radius * 0.24f);
+        const COLORREF ringColor = m_settings.indicatorUseAccentColor ? m_accentColor : m_settings.indicatorColor;
+        Gdiplus::Pen arc(Gdiplus::Color(255, GetRValue(ringColor), GetGValue(ringColor), GetBValue(ringColor)), radius * 0.24f);
         arc.SetStartCap(Gdiplus::LineCapRound);
         arc.SetEndCap(Gdiplus::LineCapRound);
         const Gdiplus::REAL sweep = static_cast<Gdiplus::REAL>(360.0 * (progress > 1.0 ? 1.0 : progress));

@@ -9,14 +9,22 @@
 #include <common/utils/logger_helper.h>
 #include <common/utils/process_path.h>
 #include <common/logger/logger.h>
+#include <common/utils/color.h>
 #include "trace.h"
 #include "resource.h"
 #include "DwellClickCore.h"
 #include "DwellClickOverlay.h"
 
 #include <atomic>
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <string>
 #include <thread>
+#include <vector>
+
+#include <mmsystem.h>
+#pragma comment(lib, "winmm.lib") // PlaySoundW
 
 // Dwell Click
 //
@@ -67,6 +75,11 @@ namespace
     const wchar_t JSON_KEY_TOOLBAR_SIDE[] = L"toolbar_side";
     const wchar_t JSON_KEY_SHOW_COUNTDOWN[] = L"show_countdown";
     const wchar_t JSON_KEY_OVERLAY_SIZE[] = L"overlay_size";
+    const wchar_t JSON_KEY_INDICATOR_USE_ACCENT_COLOR[] = L"indicator_use_accent_color";
+    const wchar_t JSON_KEY_INDICATOR_COLOR[] = L"indicator_color";
+    const wchar_t JSON_KEY_PLAY_SOUND[] = L"play_sound";
+    const wchar_t JSON_KEY_ACTIVATION_SHORTCUT[] = L"activation_shortcut";
+    const wchar_t JSON_KEY_CYCLE_ACTION_SHORTCUT[] = L"cycle_action_shortcut";
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_LEFT_CLICK[] = L"toolbar_button_left_click";
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_DOUBLE_CLICK[] = L"toolbar_button_double_click";
     const wchar_t JSON_KEY_TOOLBAR_BUTTON_RIGHT_CLICK[] = L"toolbar_button_right_click";
@@ -100,6 +113,77 @@ namespace
     constexpr int MIN_DWELL_TIME_MS = 100;
     constexpr int MAX_DWELL_TIME_MS = 60000;
     constexpr int MAX_TOLERANCE_PIXELS = 10000;
+
+    // Ring color default; matches the PowerToys brand blue the overlay palette uses.
+    constexpr COLORREF DEFAULT_INDICATOR_COLOR = RGB(0x00, 0x78, 0xD4);
+
+    // Hotkey ids, in the order get_hotkeys reports them.
+    constexpr size_t HOTKEY_ID_PAUSE = 0;
+    constexpr size_t HOTKEY_ID_CYCLE_ACTION = 1;
+
+    // Pause or resume: Win+Shift+W. Cycle action: Win+Shift+A.
+    constexpr unsigned char DEFAULT_PAUSE_HOTKEY_VK = 0x57;
+    constexpr unsigned char DEFAULT_CYCLE_HOTKEY_VK = 0x41;
+
+    // Click sound: synthesized in memory so no binary asset ships. 40 ms of a 1 kHz sine, with a
+    // 2 ms linear attack (a hard start into a sine would pop) and an exponential decay.
+    constexpr uint32_t SOUND_SAMPLE_RATE = 22050;
+    constexpr double SOUND_DURATION_S = 0.040;
+    constexpr double SOUND_FREQUENCY_HZ = 1000.0;
+    constexpr double SOUND_ATTACK_S = 0.002;
+    constexpr double SOUND_DECAY_TAU_S = 0.008;
+    constexpr double SOUND_AMPLITUDE = 0.5;
+
+    // Builds a RIFF/WAVE image (16-bit mono PCM) of the click, ready for PlaySoundW(SND_MEMORY).
+    std::vector<BYTE> BuildClickSound()
+    {
+        const uint32_t sampleCount = static_cast<uint32_t>(SOUND_SAMPLE_RATE * SOUND_DURATION_S);
+        const uint32_t dataBytes = sampleCount * sizeof(int16_t);
+
+        std::vector<BYTE> wav;
+        wav.reserve(44 + dataBytes);
+        auto put32 = [&](uint32_t v) {
+            for (int i = 0; i < 4; ++i)
+            {
+                wav.push_back(static_cast<BYTE>((v >> (8 * i)) & 0xFF));
+            }
+        };
+        auto put16 = [&](uint16_t v) {
+            wav.push_back(static_cast<BYTE>(v & 0xFF));
+            wav.push_back(static_cast<BYTE>((v >> 8) & 0xFF));
+        };
+        auto putTag = [&](const char* tag) {
+            for (int i = 0; i < 4; ++i)
+            {
+                wav.push_back(static_cast<BYTE>(tag[i]));
+            }
+        };
+
+        putTag("RIFF");
+        put32(36 + dataBytes);
+        putTag("WAVE");
+        putTag("fmt ");
+        put32(16); // fmt chunk size
+        put16(1); // PCM
+        put16(1); // mono
+        put32(SOUND_SAMPLE_RATE);
+        put32(SOUND_SAMPLE_RATE * sizeof(int16_t)); // byte rate
+        put16(sizeof(int16_t)); // block align
+        put16(16); // bits per sample
+        putTag("data");
+        put32(dataBytes);
+
+        const double twoPi = 6.283185307179586;
+        for (uint32_t i = 0; i < sampleCount; ++i)
+        {
+            const double t = static_cast<double>(i) / SOUND_SAMPLE_RATE;
+            const double attack = (std::min)(1.0, t / SOUND_ATTACK_S);
+            const double envelope = attack * std::exp(-t / SOUND_DECAY_TAU_S);
+            const double sample = SOUND_AMPLITUDE * envelope * std::sin(twoPi * SOUND_FREQUENCY_HZ * t);
+            put16(static_cast<uint16_t>(static_cast<int16_t>(sample * 32767.0)));
+        }
+        return wav;
+    }
 
     // Production injector: a tagged SendInput. Lives behind the engine's IClickInjector so the
     // state machine can be unit tested without Win32.
@@ -197,6 +281,9 @@ private:
     std::atomic<int> m_toolbarSide{ 0 };
     std::atomic<bool> m_showCountdown{ true };
     std::atomic<int> m_overlaySize{ 1 }; // 0 = small, 1 = medium, 2 = large
+    std::atomic<bool> m_indicatorUseAccentColor{ true };
+    std::atomic<COLORREF> m_indicatorColor{ DEFAULT_INDICATOR_COLOR };
+    std::atomic<bool> m_playSound{ false };
     std::atomic<bool> m_toolbarButtonLeftClick{ true };
     std::atomic<bool> m_toolbarButtonDoubleClick{ true };
     std::atomic<bool> m_toolbarButtonRightClick{ true };
@@ -210,6 +297,20 @@ private:
     // It raises this flag instead, and the hook thread's poll loop consumes it and applies the
     // engine's settings-change rule (lock until the pointer moves) within one poll interval.
     std::atomic<bool> m_relockRequested{ false };
+
+    // The hotkeys fire on the runner thread, so like the re-lock they only raise a flag; the
+    // hook thread's poll loop consumes it and makes the engine call.
+    std::atomic<bool> m_pauseToggleRequested{ false };
+    std::atomic<bool> m_cycleActionRequested{ false };
+
+    // The shortcuts. Only touched on the runner thread (constructor, set_config, get_hotkeys),
+    // so they need no synchronization.
+    Hotkey m_pauseHotkey = { .win = true, .ctrl = false, .shift = true, .alt = false, .key = DEFAULT_PAUSE_HOTKEY_VK };
+    Hotkey m_cycleHotkey = { .win = true, .ctrl = false, .shift = true, .alt = false, .key = DEFAULT_CYCLE_HOTKEY_VK };
+
+    // The click sound image, built in enable() before the hook thread starts and cleared in
+    // disable() after it joins, so the poll loop never sees it half built.
+    std::vector<BYTE> m_clickSound;
 
     // The state machine. m_injector must be declared before m_engine (the engine binds a
     // reference to it in its constructor).
@@ -228,6 +329,7 @@ private:
 
     void init_settings();
     void parse_settings(PowerToysSettings::PowerToyValues& settings);
+    bool ParseHotkey(const winrt::Windows::Data::Json::JsonObject& properties, const wchar_t* key, Hotkey& target, unsigned char defaultKey);
     dwellclick::Settings SettingsSnapshot() const;
 
     void HookThreadMain();
@@ -324,6 +426,9 @@ public:
         }
         m_engine.ResetTransient(tick);
 
+        // Before the hook thread exists, so the poll never sees a half-built buffer.
+        m_clickSound = BuildClickSound();
+
         m_terminateEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
         if (m_terminateEvent == nullptr)
         {
@@ -359,6 +464,11 @@ public:
             CloseHandle(m_terminateEvent);
             m_terminateEvent = nullptr;
         }
+
+        // The hook thread is gone, so nothing starts new sounds; stop one still playing before
+        // its buffer is freed.
+        PlaySoundW(nullptr, nullptr, 0);
+        m_clickSound.clear();
     }
 
     virtual bool is_enabled() override
@@ -369,6 +479,39 @@ public:
     virtual bool is_enabled_by_default() const override
     {
         return false;
+    }
+
+    virtual size_t get_hotkeys(Hotkey* buffer, size_t buffer_size) override
+    {
+        constexpr size_t count = 2;
+        if (buffer && buffer_size >= count)
+        {
+            buffer[HOTKEY_ID_PAUSE] = m_pauseHotkey;
+            buffer[HOTKEY_ID_CYCLE_ACTION] = m_cycleHotkey;
+        }
+        return count;
+    }
+
+    virtual bool on_hotkey(size_t hotkeyId) override
+    {
+        // The runner invokes hotkeys even while the module is disabled; there is no hook thread
+        // to act on then, so both hotkeys must do nothing (and not swallow the keystroke).
+        if (!m_enabled)
+        {
+            return false;
+        }
+
+        switch (hotkeyId)
+        {
+        case HOTKEY_ID_PAUSE:
+            m_pauseToggleRequested.store(true);
+            return true;
+        case HOTKEY_ID_CYCLE_ACTION:
+            m_cycleActionRequested.store(true);
+            return true;
+        default:
+            return false;
+        }
     }
 };
 
@@ -455,6 +598,8 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
     readInt(JSON_KEY_TOOLBAR_SIDE, m_toolbarSide, 0, 1);
     readBool(JSON_KEY_SHOW_COUNTDOWN, m_showCountdown);
     readInt(JSON_KEY_OVERLAY_SIZE, m_overlaySize, 0, 2);
+    readBool(JSON_KEY_INDICATOR_USE_ACCENT_COLOR, m_indicatorUseAccentColor);
+    readBool(JSON_KEY_PLAY_SOUND, m_playSound);
     readBool(JSON_KEY_TOOLBAR_BUTTON_LEFT_CLICK, m_toolbarButtonLeftClick);
     readBool(JSON_KEY_TOOLBAR_BUTTON_DOUBLE_CLICK, m_toolbarButtonDoubleClick);
     readBool(JSON_KEY_TOOLBAR_BUTTON_RIGHT_CLICK, m_toolbarButtonRightClick);
@@ -463,6 +608,33 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
     readBool(JSON_KEY_TOOLBAR_BUTTON_SCROLL_UP, m_toolbarButtonScrollUp);
     readBool(JSON_KEY_TOOLBAR_BUTTON_SCROLL_DOWN, m_toolbarButtonScrollDown);
     readBool(JSON_KEY_TOOLBAR_BUTTON_OPEN_SETTINGS, m_toolbarButtonOpenSettings);
+
+    // Same helper and "#RRGGBB" format as Mouse Highlighter's colors. A malformed string keeps
+    // the previous value.
+    if (properties.HasKey(JSON_KEY_INDICATOR_COLOR))
+    {
+        try
+        {
+            auto colorString = (std::wstring)properties.GetNamedObject(JSON_KEY_INDICATOR_COLOR).GetNamedString(JSON_KEY_VALUE);
+            uint8_t r, g, b;
+            if (checkValidRGB(colorString, &r, &g, &b))
+            {
+                m_indicatorColor.store(RGB(r, g, b));
+            }
+            else
+            {
+                Logger::error("Indicator color value is invalid. Keeping previous value");
+            }
+        }
+        catch (...)
+        {
+            Logger::warn("Failed to read the indicator color from settings. Keeping previous value");
+        }
+    }
+
+    // A missing shortcut is not an error (a fresh install has none); the member defaults cover it.
+    ParseHotkey(properties, JSON_KEY_ACTIVATION_SHORTCUT, m_pauseHotkey, DEFAULT_PAUSE_HOTKEY_VK);
+    ParseHotkey(properties, JSON_KEY_CYCLE_ACTION_SHORTCUT, m_cycleHotkey, DEFAULT_CYCLE_HOTKEY_VK);
 
     // The action is an enum stored as a number. An unknown value (a future action arriving via
     // a hand-edited or newer settings file) falls back to LeftClick, the least surprising
@@ -481,6 +653,39 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
         {
             Logger::warn(L"Failed to read the default action setting; keeping previous value.");
         }
+    }
+}
+
+// Reads one hotkey object into target. Absent or malformed keeps the previous value; a shortcut
+// with no modifier would swallow a bare key system-wide, so that falls back to Win+Shift+defaultKey.
+bool DwellClick::ParseHotkey(const winrt::Windows::Data::Json::JsonObject& properties, const wchar_t* key, Hotkey& target, unsigned char defaultKey)
+{
+    try
+    {
+        if (!properties.HasKey(key))
+        {
+            return false;
+        }
+        auto jsonHotkey = properties.GetNamedObject(key);
+        auto hotkey = PowerToysSettings::HotkeyObject::from_json(jsonHotkey);
+        Hotkey parsed{};
+        parsed.win = hotkey.win_pressed();
+        parsed.ctrl = hotkey.ctrl_pressed();
+        parsed.shift = hotkey.shift_pressed();
+        parsed.alt = hotkey.alt_pressed();
+        parsed.key = static_cast<unsigned char>(hotkey.get_code());
+        if (!parsed.win && !parsed.ctrl && !parsed.shift && !parsed.alt)
+        {
+            Logger::info(L"Dwell Click shortcut {} has no modifier; using the default", key);
+            parsed = { .win = true, .ctrl = false, .shift = true, .alt = false, .key = defaultKey };
+        }
+        target = parsed;
+        return true;
+    }
+    catch (...)
+    {
+        Logger::warn(L"Failed to initialize Dwell Click shortcut {}", key);
+        return false;
     }
 }
 
@@ -545,6 +750,25 @@ void DwellClick::HookThreadMain()
             m_engine.LockUntilMove();
         }
 
+        if (m_pauseToggleRequested.exchange(false))
+        {
+            // The same engine call the toolbar's pause button makes (see HandleToolbarCommand).
+            m_engine.SetPaused(!m_engine.IsPaused());
+        }
+        if (m_cycleActionRequested.exchange(false))
+        {
+            // A drag in progress holds the left button. Release it first, as the toolbar's
+            // select does, so changing the action can never orphan the held button. The toolbar
+            // highlight follows because SetToolbarState below reads NextAction() every poll.
+            if (m_engine.IsDragging())
+            {
+                m_engine.ReleaseDrag();
+            }
+            // Every action, in enum order, wrapping.
+            const int next = (static_cast<int>(m_engine.NextAction()) + 1) % (static_cast<int>(dwellclick::DwellAction::ScrollDown) + 1);
+            m_engine.SetNextAction(static_cast<dwellclick::DwellAction>(next));
+        }
+
         const dwellclick::Settings snapshot = SettingsSnapshot();
         const uint64_t tick = GetTickCount64();
         POINT cursor{};
@@ -557,6 +781,8 @@ void DwellClick::HookThreadMain()
             overlaySettings.toolbarSide = m_toolbarSide.load();
             overlaySettings.showCountdown = m_showCountdown.load();
             overlaySettings.overlaySize = m_overlaySize.load();
+            overlaySettings.indicatorUseAccentColor = m_indicatorUseAccentColor.load();
+            overlaySettings.indicatorColor = m_indicatorColor.load();
             overlaySettings.buttonLeftClick = m_toolbarButtonLeftClick.load();
             overlaySettings.buttonDoubleClick = m_toolbarButtonDoubleClick.load();
             overlaySettings.buttonRightClick = m_toolbarButtonRightClick.load();
@@ -586,6 +812,11 @@ void DwellClick::HookThreadMain()
             // Injection failures are logged by the injector; progress drives the ring.
             m_overlay.UpdateIndicator(cursor, result.progress, !overToolbar);
             m_overlay.SetToolbarState({ m_engine.NextAction(), m_engine.IsPaused(), m_engine.IsDragging() });
+        }
+
+        if (result.fired && m_playSound.load() && !m_clickSound.empty())
+        {
+            PlaySoundW(reinterpret_cast<LPCWSTR>(m_clickSound.data()), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
         }
     }
 

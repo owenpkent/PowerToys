@@ -165,6 +165,10 @@ engine, following the Mouse Button Lock module closely:
   rest becomes a click, the exact Midas failure the engine is built to avoid), tolerances to
   0 - 10000 px, and an unknown `default_action` value falls back to `LeftClick` rather than
   clamping to whatever enum sits at the range edge.
+- **Hotkeys reach the engine through flags.** `get_hotkeys` reports two shortcuts and `on_hotkey`
+  runs on the runner thread, so it only raises an atomic flag (`m_pauseToggleRequested`,
+  `m_cycleActionRequested`) that the poll loop consumes, exactly like the re-lock. See
+  [Hotkeys](#hotkeys).
 - **Shutdown never strands a drag.** The hook thread's exit path (disable, destroy, or a failed
   wait) releases a held drag button via `ReleaseDrag`.
 
@@ -186,6 +190,32 @@ obey Fitts's law and this audience needs room to land on them), and eight checkb
 which buttons the toolbar carries. `DwellClickProperties` must keep its
 defaults in sync with the engine and dllmain.cpp. DSC v3 can configure every property
 (`doc/dsc/modules/DwellClick.md`), and the module appears in OOBE's Mouse Utilities page.
+
+## Hotkeys
+
+Two shortcuts, both parsed with `PowerToysSettings::HotkeyObject::from_json` (a shortcut with no
+modifier falls back to its default so a bare key is never swallowed system-wide). Both do nothing
+while the module is disabled, because the runner delivers hotkeys regardless.
+
+| Id | Setting | Default | Effect |
+|---|---|---|---|
+| 0 | `activation_shortcut` | Win+Shift+W | Toggles pause with `SetPaused`, the call the toolbar's pause button makes. |
+| 1 | `cycle_action_shortcut` | Win+Shift+A | Releases a held drag, then `SetNextAction` to the next `DwellAction` in enum order (scroll up and down included), wrapping. The toolbar highlight follows because the poll loop pushes `NextAction()` into the toolbar every tick. |
+
+## Click sound
+
+With `play_sound` on, a fired action plays a 40 ms, 1 kHz click. The WAV image is synthesized in
+memory by `BuildClickSound` (no binary asset ships), built in `enable` before the hook thread starts,
+and played with `PlaySoundW(SND_MEMORY | SND_ASYNC | SND_NODEFAULT)` from the poll loop when
+`PollResult.fired` is set. `disable` stops any sound still playing before the buffer is freed.
+
+## Ring color
+
+`indicator_use_accent_color` (default `true`) and `indicator_color` (`"#RRGGBB"`, default
+`#0078D4`, parsed with `checkValidRGB`; a malformed string keeps the previous value) travel the same
+path as `show_countdown` and `overlay_size`: `OverlaySettings` into `Overlay::ApplySettings`. The
+ring's arc is repainted every tick, so a change shows immediately. The accent color is read with
+`DwmGetColorizationColor` when a countdown starts.
 
 ## The overlay
 
@@ -240,6 +270,11 @@ must agree on all of these):
 | `toolbar_side` | `0` (left edge) | |
 | `show_countdown` | `true` | |
 | `overlay_size` | `1` (medium, 56 px buttons) | 0 = 40 px, 2 = 72 px; the countdown ring scales to match. |
+| `activation_shortcut` | Win+Shift+W | Pause or resume. |
+| `cycle_action_shortcut` | Win+Shift+A | Next action. |
+| `play_sound` | `false` | Click sound when an action fires. |
+| `indicator_use_accent_color` | `true` | Ring uses the Windows accent color. |
+| `indicator_color` | `"#0078D4"` | Ring color when the accent is off. |
 | `toolbar_button_*` | all `true` except `toolbar_button_middle_click` | Eight booleans choosing the action buttons; collapse and pause are always shown. |
 
 ## Testing
@@ -295,7 +330,6 @@ Still to build:
   the toolbar covers action selection without them.
 - The toolbar docks to the primary monitor only; per-monitor placement (following the pointer's
   monitor) is a possible follow-up.
-- A hotkey to toggle pause without reaching the toolbar.
 
 Command Palette is deliberately unwired, matching the Mouse Button Lock decision: the sibling
 CmdPal entries fire a module trigger event, and this module has no trigger event; activation is
