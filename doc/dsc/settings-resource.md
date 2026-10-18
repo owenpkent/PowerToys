@@ -42,6 +42,7 @@ The settings resource supports the following PowerToys modules:
 - **ImageResizer** - Image resize configuration.
 - **KeyboardManager** - Key remapping and shortcut settings.
 - **MeasureTool** - Screen measurement tool settings.
+- **MouseButtonLock** - Hands-free mouse button drag-lock settings.
 - **MouseHighlighter** - Mouse highlighting configuration.
 - **MouseJump** - Mouse jump navigation settings.
 - **MousePointerCrosshairs** - Crosshair display settings.

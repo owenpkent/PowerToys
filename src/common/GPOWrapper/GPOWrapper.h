@@ -42,6 +42,7 @@ namespace winrt::PowerToys::GPOWrapper::implementation
         static GpoRuleConfigured GetConfiguredAutoHideCursorEnabledValue();
         static GpoRuleConfigured GetConfiguredCursorWrapEnabledValue();
         static GpoRuleConfigured GetConfiguredDwellClickEnabledValue();
+        static GpoRuleConfigured GetConfiguredMouseButtonLockEnabledValue();
         static GpoRuleConfigured GetConfiguredPowerRenameEnabledValue();
         static GpoRuleConfigured GetConfiguredPowerLauncherEnabledValue();
         static GpoRuleConfigured GetConfiguredQuickAccentEnabledValue();
@@ -79,7 +80,7 @@ namespace winrt::PowerToys::GPOWrapper::implementation
         static GpoRuleConfigured GetConfiguredMwbSameSubnetOnlyValue();
         static GpoRuleConfigured GetConfiguredMwbValidateRemoteIpValue();
         static GpoRuleConfigured GetConfiguredMwbDisableUserDefinedIpMappingRulesValue();
-        static winrt::hstring GPOWrapper::GetConfiguredMwbPolicyDefinedIpMappingRules();
+        static winrt::hstring GetConfiguredMwbPolicyDefinedIpMappingRules();
         static GpoRuleConfigured GetConfiguredNewPlusHideTemplateFilenameExtensionValue();
         static GpoRuleConfigured GetAllowDataDiagnosticsValue();
         static GpoRuleConfigured GetConfiguredRunAtStartupValue();

@@ -22,6 +22,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library.Helpers
                 ModuleType.MousePointerCrosshairs => "MouseUtils_MousePointerCrosshairs/Header",
                 ModuleType.CursorWrap => "MouseUtils_CursorWrap/Header",
                 ModuleType.DwellClick => "MouseUtils_DwellClick/Header",
+                ModuleType.MouseButtonLock => "MouseUtils_MouseButtonLock/Header",
                 ModuleType.GeneralSettings => "QuickAccessTitle/Title",
                 _ => $"{moduleType}/ModuleTitle",
             };
@@ -33,7 +34,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library.Helpers
             {
                 ModuleType.AdvancedPaste => "ms-appx:///Assets/Settings/Icons/AdvancedPaste.png",
                 ModuleType.AltWindowCycle => "ms-appx:///Assets/Settings/Icons/WindowHopper.png",
-                ModuleType.AutoHideCursor => "ms-appx:///Assets/Settings/Icons/MouseUtils.png",
+                ModuleType.AutoHideCursor => "ms-appx:///Assets/Settings/Icons/CursorHide.png",
                 ModuleType.Workspaces => "ms-appx:///Assets/Settings/Icons/Workspaces.png",
                 ModuleType.PowerOCR => "ms-appx:///Assets/Settings/Icons/TextExtractor.png",
                 ModuleType.PowerAccent => "ms-appx:///Assets/Settings/Icons/QuickAccent.png",
@@ -58,6 +59,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library.Helpers
                 ModuleType.CropAndLock => generalSettingsConfig.Enabled.CropAndLock,
                 ModuleType.CursorWrap => generalSettingsConfig.Enabled.CursorWrap,
                 ModuleType.DwellClick => generalSettingsConfig.Enabled.DwellClick,
+                ModuleType.MouseButtonLock => generalSettingsConfig.Enabled.MouseButtonLock,
                 ModuleType.EnvironmentVariables => generalSettingsConfig.Enabled.EnvironmentVariables,
                 ModuleType.FancyZones => generalSettingsConfig.Enabled.FancyZones,
                 ModuleType.FileLocksmith => generalSettingsConfig.Enabled.FileLocksmith,
@@ -102,6 +104,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library.Helpers
                 case ModuleType.CropAndLock: generalSettingsConfig.Enabled.CropAndLock = isEnabled; break;
                 case ModuleType.CursorWrap: generalSettingsConfig.Enabled.CursorWrap = isEnabled; break;
                 case ModuleType.DwellClick: generalSettingsConfig.Enabled.DwellClick = isEnabled; break;
+                case ModuleType.MouseButtonLock: generalSettingsConfig.Enabled.MouseButtonLock = isEnabled; break;
                 case ModuleType.EnvironmentVariables: generalSettingsConfig.Enabled.EnvironmentVariables = isEnabled; break;
                 case ModuleType.FancyZones: generalSettingsConfig.Enabled.FancyZones = isEnabled; break;
                 case ModuleType.FileLocksmith: generalSettingsConfig.Enabled.FileLocksmith = isEnabled; break;
@@ -149,6 +152,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library.Helpers
                 ModuleType.CropAndLock => CropAndLockSettings.ModuleName,
                 ModuleType.CursorWrap => CursorWrapSettings.ModuleName,
                 ModuleType.DwellClick => DwellClickSettings.ModuleName,
+                ModuleType.MouseButtonLock => MouseButtonLockSettings.ModuleName,
                 ModuleType.EnvironmentVariables => EnvironmentVariablesSettings.ModuleName,
                 ModuleType.FancyZones => FancyZonesSettings.ModuleName,
                 ModuleType.FileLocksmith => FileLocksmithSettings.ModuleName,

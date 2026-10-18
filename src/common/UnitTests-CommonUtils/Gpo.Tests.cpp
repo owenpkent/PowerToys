@@ -148,6 +148,12 @@ namespace UnitTestsCommonUtils
             Assert::IsTrue(IsValidGpoResult(result));
         }
 
+        TEST_METHOD(GetConfiguredMouseButtonLockEnabledValue_ReturnsValidState)
+        {
+            auto result = getConfiguredMouseButtonLockEnabledValue();
+            Assert::IsTrue(IsValidGpoResult(result));
+        }
+
         TEST_METHOD(GetConfiguredMouseWithoutBordersEnabledValue_ReturnsValidState)
         {
             auto result = getConfiguredMouseWithoutBordersEnabledValue();

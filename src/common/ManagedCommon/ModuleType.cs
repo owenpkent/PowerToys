@@ -41,6 +41,7 @@ namespace ManagedCommon
         GrabAndMove,
         ZoomIt,
         DwellClick,
+        MouseButtonLock,
         GeneralSettings,
     }
 }

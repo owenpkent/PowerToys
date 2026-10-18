@@ -1,6 +1,6 @@
 ﻿## Mouse Utils
 
-The migrated suite is [MouseUtils.UITests.Next](../MouseUtils.UITests.Next/) and currently contains 44 tests. Checked items have an automated effect-based assertion. Unchecked items require physical hardware or desktop state that the single-monitor Hyper-V profile cannot establish faithfully.
+The migrated suite is [MouseUtils.UITests.Next](../MouseUtils.UITests.Next/) and currently contains 53 tests. Checked items have an automated effect-based assertion. Unchecked items require physical hardware or desktop state that the single-monitor Hyper-V profile cannot establish faithfully.
 
 ### Find My Mouse
 
@@ -101,3 +101,12 @@ Automated by [CursorWrapTests.cs](../MouseUtils.UITests.Next/CursorWrapTests.cs)
 - [x] A dwell over the desktop completes a Drag action's press, observable in the system button state, and a second dwell after moving past the post-action tolerance releases it. Plain click actions are covered by the engine unit tests; their down+up pair is too transient to observe from a test.
 
 Automated by [DwellClickSettingsTests.cs](../MouseUtils.UITests.Next/DwellClickSettingsTests.cs).
+
+### Mouse Button Lock
+
+- [x] The Mouse Button Lock settings group is visible; disabling the module disables its "Buttons and behavior" options and re-enabling restores them. The module has no separate worker process, window, or named event, so the enabled/disabled effect is verified by whether holding a configured button past its hold duration actually locks it.
+- [x] Left, right, and middle button lock checkboxes change and persist independently, including across a restart.
+- [x] Hold duration (200-2200 ms) and move-cancel distance (0-100 px) boundary values persist, including across a restart.
+- [x] Holding an enabled button past its configured hold duration locks it until a same-button tap releases it; releasing before the hold duration elapses, or holding a disabled button, never locks.
+
+Automated by [MouseButtonLockSettingsTests.cs](../MouseUtils.UITests.Next/MouseButtonLockSettingsTests.cs).

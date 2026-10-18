@@ -44,6 +44,7 @@ namespace Microsoft.PowerToys.Settings.UI.Views
                 SettingsRepository<MouseJumpSettings>.GetInstance(settingsUtils),
                 SettingsRepository<MousePointerCrosshairsSettings>.GetInstance(settingsUtils),
                 SettingsRepository<CursorWrapSettings>.GetInstance(settingsUtils),
+                SettingsRepository<MouseButtonLockSettings>.GetInstance(settingsUtils),
                 SettingsRepository<DwellClickSettings>.GetInstance(settingsUtils),
                 ShellPage.SendDefaultIPCMessage);
 
@@ -69,6 +70,18 @@ namespace Microsoft.PowerToys.Settings.UI.Views
             catch (Exception ex)
             {
                 Logger.LogError("Error while trying to open the animations settings", ex);
+            }
+        }
+
+        private void OpenMouseSettings_Click(Microsoft.UI.Xaml.Documents.Hyperlink sender, Microsoft.UI.Xaml.Documents.HyperlinkClickEventArgs args)
+        {
+            try
+            {
+                StartProcessHelper.Start(StartProcessHelper.MouseSettings);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("Error while trying to open the mouse settings", ex);
             }
         }
     }

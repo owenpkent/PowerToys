@@ -8,7 +8,7 @@
 [Bugs](https://github.com/microsoft/PowerToys/issues?q=is%3Aopen%20label%3AIssue-Bug%20label%3A%22Product-Mouse%20Utilities%22)<br>
 [Pull Requests](https://github.com/microsoft/PowerToys/pulls?q=is%3Apr+is%3Aopen+label%3A%22Product-Mouse+Utilities%22)
 
-Mouse Utilities is a collection of tools designed to enhance mouse and cursor functionality on Windows. The module contains four shipping sub-utilities that provide different mouse-related features, plus one in development.
+Mouse Utilities is a collection of tools designed to enhance mouse and cursor functionality on Windows. The module contains several sub-utilities that provide different mouse-related features.
 
 ## Overview
 
@@ -19,10 +19,11 @@ Mouse Utilities includes the following sub-modules:
 - **[Mouse Jump](mousejump.md)**: Allows quick cursor movement to specific screen locations
 - **[Mouse Pointer Crosshairs](mousepointer.md)**: Displays crosshair lines that follow the mouse cursor
 - **[Dwell Click](dwellclick.md)** (in development): Clicks automatically when the pointer is held still, for users who can move a pointer but cannot reliably click it. Ships with a countdown ring at the pointer and a dwell-to-select action toolbar (clicks, drag, scroll modes, open Settings) with configurable buttons and sizes
+- **[Mouse Button Lock](mousebuttonlock.md)**: A ClickLock equivalent for the left, right, and middle mouse buttons - hold a button to lock it down for hands-free dragging, then click any button to release (left is optional and off by default)
 
 ## Architecture
 
-Most of the sub-modules (Find My Mouse, Mouse Highlighter, and Mouse Pointer Crosshairs) run within the PowerToys Runner process as separate threads. Mouse Jump is more complex and runs as a separate process that communicates with the Runner via events.
+Most of the sub-modules (Find My Mouse, Mouse Highlighter, Mouse Pointer Crosshairs, and Mouse Button Lock) run within the PowerToys Runner process as separate threads. Mouse Jump is more complex and runs as a separate process that communicates with the Runner via events.
 
 ### Code Structure
 
@@ -41,6 +42,7 @@ Most of the sub-modules (Find My Mouse, Mouse Highlighter, and Mouse Pointer Cro
 - [MouseJumpUI](/src/modules/MouseUtils/MouseJumpUI)
 - [MouseJump.Common](/src/modules/MouseUtils/MouseJump.Common)
 - [DwellClick](/src/modules/MouseUtils/DwellClick)
+- [MouseButtonLock](/src/modules/MouseUtils/MouseButtonLock)
 
 ## Community Contributors
 
