@@ -94,11 +94,15 @@ integer product can overflow for extreme inputs, which the eventual fuzz target 
 
 ### Actions
 
-`DwellAction` is `LeftClick`, `RightClick`, `DoubleClick`, `MiddleClick`, `Drag`, `ScrollUp`, or
-`ScrollDown`. The engine lowers each to a `ClickKind` the injector synthesizes, so the injector
-stays a dumb `SendInput` wrapper and all sequencing lives in the engine.
+`DwellAction` is `LeftClick`, `RightClick`, `DoubleClick`, `MiddleClick`, `Drag`, `ScrollUp`,
+`ScrollDown`, `ScrollLeft`, `ScrollRight`, `ZoomIn`, or `ZoomOut`. The engine lowers each to a
+`ClickKind` the injector synthesizes, so the injector stays a dumb `SendInput` wrapper and all
+sequencing lives in the engine. The values are persisted (`default_action`) and walked in order
+by the cycle shortcut, so new actions are only appended, and `LastDwellAction` names the end.
+Horizontal scroll is one `MOUSEEVENTF_HWHEEL` notch; zoom is Ctrl plus one wheel notch, pressed
+and released in the same `SendInput` batch so Ctrl is never left down.
 
-**Scroll is a mode, not a one-shot.** A scroll dwell injects one wheel notch at the rest point,
+**Scroll and zoom are modes, not one-shots** (`IsRepeatingAction`). A scroll dwell injects one wheel notch at the rest point,
 then restarts its own countdown instead of locking: another notch lands each dwell period for as
 long as the pointer keeps resting, and the action never reverts to the default (a single notch
 snapping back to clicking would make scrolling useless). Movement re-anchors as usual, and a
@@ -194,10 +198,14 @@ The module lives on the Mouse Utilities settings page (`MouseUtilsPage.xaml`) wi
 dwell-time slider (200 ms to 5 s; the module clamps hand-edited values to 100 ms - 60 s), a
 default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox,
 number boxes for the two tolerances (0 - 100 px), and the overlay options: action toolbar on/off,
-toolbar side (left/right edge), countdown ring on/off, overlay size (small 40 px / medium 56 px /
-large 72 px buttons, with the ring scaled to match; medium is the default because dwell targets
-obey Fitts's law and this audience needs room to land on them), and eight checkboxes choosing
-which buttons the toolbar carries. `DwellClickProperties` must keep its
+toolbar side (left, right, top, or bottom edge), toolbar style (docked bar or floating button
+with a large menu), position along the edge (0 to 100%, labeled by `PercentLabelConverter`),
+countdown ring on/off, overlay size (small 40 px / medium 56 px / large 72 px buttons, with the
+ring scaled to match; medium is the default because dwell targets obey Fitts's law and this
+audience needs room to land on them), and seventeen checkboxes choosing which buttons the
+toolbar carries (see [Placement and style](#placement-and-style)). Scroll and zoom are never
+offered as the default action: the module clamps `default_action` to the click actions, so they
+are reached from the toolbar or the cycle shortcut. `DwellClickProperties` must keep its
 defaults in sync with the engine and dllmain.cpp. DSC v3 can configure every property
 (`doc/dsc/modules/DwellClick.md`), and the module appears in OOBE's Mouse Utilities page.
 
@@ -210,7 +218,7 @@ while the module is disabled, because the runner delivers hotkeys regardless.
 | Id | Setting | Default | Effect |
 |---|---|---|---|
 | 0 | `activation_shortcut` | Win+Shift+W | Toggles pause with `SetPaused`, the call the toolbar's pause button makes. |
-| 1 | `cycle_action_shortcut` | Win+Shift+A | Releases a held drag, then `SetNextAction` to the next `DwellAction` in enum order (scroll up and down included), wrapping. The toolbar highlight follows because the poll loop pushes `NextAction()` into the toolbar every tick. |
+| 1 | `cycle_action_shortcut` | Win+Shift+A | Releases a held drag, then `SetNextAction` to the next offered `DwellAction` in enum order, wrapping. An action is offered when it is the default action or its toolbar button is switched on (`IsActionOffered`), so an action turned off in Settings never comes up. The toolbar highlight follows because the poll loop pushes `NextAction()` into the toolbar every tick. |
 
 ## Click sound
 
@@ -236,9 +244,15 @@ pointer-attached countdown with an on-screen action menu:
   always sees when a click is about to land. Its window is layered, topmost, and click-through;
   it can never take input or focus. It hides whenever the machine is locked, paused, or the
   pointer is over the toolbar (progress is 0 in all three).
-- **The action toolbar** docks to the left or right screen edge: a collapse handle, pause/resume,
-  and a Settings-chosen set of action buttons (left, double, right, middle, drag, scroll up,
-  scroll down, and an open-Settings gear; middle is off by default). Buttons activate by HOVERING
+- **The action toolbar** docks to any screen edge: a collapse handle, pause/resume, and a
+  Settings-chosen set of buttons. The action buttons choose the next dwell action (left, double,
+  right, middle, drag, scroll up/down/left/right, zoom in/out). The system buttons act at once
+  instead, as a keystroke into the foreground window, which is still the app the user was in
+  because the toolbar never activates: Back (`VK_BROWSER_BACK`), Start menu (Win), Show desktop
+  (Win+D), Task view (Win+Tab), and Notifications (Win+N on Windows 11, Win+A on Windows 10).
+  These are the Windows counterparts of Ease Mouse's Back, Home, Overview, and Notifications.
+  Middle click and every button added after scroll up/down are off by default, so the shipping
+  bar keeps its length. Buttons activate by HOVERING
   for the dwell time, with the button filling as feedback; a physical click activates
   immediately. Both paths share the leave-to-rearm rule, so parking on Pause toggles once, not
   once per dwell time. The gear exists because a dwell user cannot reach the tray icon: it
@@ -256,10 +270,32 @@ pointer-attached countdown with an on-screen action menu:
   the engine stays single-threaded. Glyphs are drawn as pictograms (no text), so the overlay
   needs no localized resources.
 
-Both surfaces can be turned off in Settings (`show_toolbar`, `show_countdown`), the toolbar edge
-is `toolbar_side`, and `overlay_size` scales the buttons and the ring together (small / medium /
-large; medium is the default because dwell targets obey Fitts's law). The toolbar currently docks
-to the primary monitor.
+Both surfaces can be turned off in Settings (`show_toolbar`, `show_countdown`), and
+`overlay_size` scales the buttons and the ring together (small / medium / large; medium is the
+default because dwell targets obey Fitts's law).
+
+### Placement and style
+
+Placement follows Ease Mouse's dock and button-position settings:
+
+- `toolbar_side` docks the bar to the left, right, top, or bottom edge. The side edges stack
+  buttons down; the top and bottom edges run them across (`ToolbarOrientation`). The collapse
+  chevron turns to point into whichever edge the bar is on.
+- `toolbar_position` centers the bar at 0 to 100% along that edge, clamped so the bar stays fully
+  inside the work area. Users move it off content they need to reach.
+- A bar longer than its edge wraps into another column (or row) instead of running off screen:
+  `ToolbarModel::ButtonsThatFit` sizes a line from the work area, and `SetLayout` flows the
+  buttons into as many lines as they need.
+- `toolbar_style` 1 replaces the bar with Ease Mouse's "Big" menu: a single floating button (a
+  3 x 3 dot grid) at the same edge and position. Dwelling on it opens a near-square grid of
+  larger buttons (64 / 80 / 96 px for the three overlay sizes) centered on the work area, with a
+  close button in the handle's slot. It is the same window and `ToolbarModel` as the bar, with
+  the handle's collapsed state meaning "menu closed". Any choice closes the menu, and the menu
+  was in the middle of the screen, so the pointer is never left resting on the reappearing
+  button. While the menu is open the poll loop keeps the engine locked wherever the pointer is
+  (`Overlay::IsMenuOpen`), so nothing is clicked behind it.
+
+The toolbar docks to the primary monitor.
 
 ## Defaults
 
@@ -277,7 +313,9 @@ must agree on all of these):
 | Setting | Default | Notes |
 |---|---|---|
 | `show_toolbar` | `true` | The toolbar is the action-selection surface; hiding it leaves only the default action. |
-| `toolbar_side` | `0` (left edge) | |
+| `toolbar_side` | `0` (left edge) | 1 = right, 2 = top, 3 = bottom. |
+| `toolbar_position` | `50` | Percent along the edge (0 to 100) where the toolbar or floating button is centered. |
+| `toolbar_style` | `0` (docked bar) | 1 = floating button that opens a large menu in the middle of the screen. |
 | `show_countdown` | `true` | |
 | `overlay_size` | `1` (medium, 56 px buttons) | 0 = 40 px, 2 = 72 px; the countdown ring scales to match. |
 | `activation_shortcut` | Win+Shift+W | Pause or resume. |
@@ -285,12 +323,12 @@ must agree on all of these):
 | `play_sound` | `false` | Click sound when an action fires. |
 | `indicator_use_accent_color` | `true` | Ring uses the Windows accent color. |
 | `indicator_color` | `"#0078D4"` | Ring color when the accent is off. |
-| `toolbar_button_*` | all `true` except `toolbar_button_middle_click` | Eight booleans choosing the action buttons; collapse and pause are always shown. |
+| `toolbar_button_*` | `true` for left, double, right, drag, scroll up, scroll down, and open settings; `false` for the rest | Seventeen booleans choosing the action buttons; collapse and pause are always shown. Off by default: middle click, scroll left and right, zoom in and out, back, start, show desktop, task view, and notifications. |
 
 ## Testing
 
-[EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) has 35 tests in
-seven classes, using a recording fake injector and an explicit tick:
+[EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) has 39 tests in
+eight classes, using a recording fake injector and an explicit tick:
 
 - `DwellCountdown` - starts locked, tolerance boundaries, firing at the threshold, progress
   reporting, and the degenerate inputs above
@@ -304,11 +342,14 @@ seven classes, using a recording fake injector and an explicit tick:
 - `InjectionFailure` - failures are reported, not retried per poll, and do not consume the action
 - `ScrollActions` - auto-repeat while resting, no revert, movement re-anchoring, and a failed
   scroll locking instead of retrying
+- `HorizontalScrollAndZoomActions` - the four newer actions map to their own click kinds,
+  auto-repeat, never revert, and `LastDwellAction` names the end of the enum
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
-20 tests over the toolbar model in four classes: layout and hit-testing, the configurable button
-set and size, the hover dwell (activation, jitter, re-arm, tick wrap), and physical clicks plus
-the collapse handle.
+28 tests over the toolbar model in six classes: layout and hit-testing, the configurable button
+set and size, the hover dwell (activation, jitter, re-arm, tick wrap), physical clicks plus
+the collapse handle, horizontal flow and wrapping (`SetLayout`, `ButtonsThatFit`), and the
+command-to-action mapping (every action has a toolbar command; system commands choose none).
 
 Build and run:
 
@@ -339,7 +380,7 @@ The four `DwellClick` UI tests:
 | Test | What it proves |
 |---|---|
 | `SectionNavigationAndModuleLifecycleAreAvailable` | The settings group is reachable; disabling the module stops a dwell from starting the seeded Drag, and re-enabling restores it. |
-| `ActionAndRevertPersistAcrossRestart` | The action, revert, toolbar, overlay-size, and countdown options persist to `settings.json` and reload after a Settings restart. |
+| `ActionAndRevertPersistAcrossRestart` | The action, revert, toolbar (edge, style, position, a new button), overlay-size, and countdown options persist to `settings.json` and reload after a Settings restart. |
 | `DwellTimeAndTolerancesPersistAtBoundaries` | The dwell time and both tolerances persist at their minimum and maximum, and the dwell time reloads after restart. |
 | `ADwellCompletesADragAndASecondDwellReleasesIt` | A dwell presses and holds the left button, a second dwell releases it, and the engine re-arms for another drag. |
 

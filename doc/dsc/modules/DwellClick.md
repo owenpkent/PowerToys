@@ -82,10 +82,34 @@ selects that action (or pauses dwelling) with no click needed.
 
 ### ToolbarSide
 
-Sets which screen edge the action toolbar docks to.
+Sets which screen edge the action toolbar docks to. With the floating
+button style, this is the edge the button sits on.
 
 **Type:** integer  
-**Values:** `0` = left edge, `1` = right edge  
+**Values:** `0` = left edge, `1` = right edge, `2` = top edge,
+`3` = bottom edge  
+**Default:** `0`
+
+### ToolbarPosition
+
+Sets where along its edge the toolbar (or the floating button) is
+centered, as a percentage from the start of the edge (`0`) to its end
+(`100`). The start of the left or right edge is the top; the start of
+the top or bottom edge is the left. Move the toolbar away from content
+that needs to be reached.
+
+**Type:** integer  
+**Range:** `0` to `100` (the Settings UI slider moves in steps of `5`)  
+**Default:** `50`
+
+### ToolbarStyle
+
+Sets how the toolbar is presented: a bar docked to the screen edge, or a
+single floating button that opens a large menu of actions in the middle
+of the screen. The large menu closes after an action is chosen.
+
+**Type:** integer  
+**Values:** `0` = docked bar, `1` = floating button with large menu  
 **Default:** `0`
 
 ### ShowCountdown
@@ -160,11 +184,13 @@ Sets the countdown ring color used when `IndicatorUseAccentColor` is
 
 ### ToolbarButton properties
 
-Eight booleans choose which action buttons the toolbar carries; the
-collapse handle and pause are always present. Scroll actions keep
-scrolling while the pointer rests and stay selected until another
-action is chosen; `ToolbarButtonOpenSettings` is a button that opens
-PowerToys Settings, for users who cannot reach the system tray.
+Seventeen booleans choose which action buttons the toolbar carries; the
+collapse handle and pause are always present. Scroll and zoom actions
+keep repeating while the pointer rests and stay selected until another
+action is chosen. Back, Start menu, Show desktop, Task view, and
+Notifications act at once in the window that was in use.
+`ToolbarButtonOpenSettings` is a button that opens PowerToys Settings,
+for users who cannot reach the system tray.
 
 - `ToolbarButtonLeftClick` (default `true`)
 - `ToolbarButtonDoubleClick` (default `true`)
@@ -173,6 +199,15 @@ PowerToys Settings, for users who cannot reach the system tray.
 - `ToolbarButtonDrag` (default `true`)
 - `ToolbarButtonScrollUp` (default `true`)
 - `ToolbarButtonScrollDown` (default `true`)
+- `ToolbarButtonScrollLeft` (default `false`)
+- `ToolbarButtonScrollRight` (default `false`)
+- `ToolbarButtonZoomIn` (default `false`)
+- `ToolbarButtonZoomOut` (default `false`)
+- `ToolbarButtonBack` (default `false`)
+- `ToolbarButtonStart` (default `false`)
+- `ToolbarButtonShowDesktop` (default `false`)
+- `ToolbarButtonTaskView` (default `false`)
+- `ToolbarButtonNotifications` (default `false`)
 - `ToolbarButtonOpenSettings` (default `true`)
 
 ## Examples
