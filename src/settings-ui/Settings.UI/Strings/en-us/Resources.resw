@@ -2876,6 +2876,214 @@ From there, simply click on one of the supported files in the File Explorer and 
   <data name="MouseUtils_CursorWrap.Description" xml:space="preserve">
     <value>Wrap the mouse cursor between monitor edges</value>
   </data>
+  <data name="MouseUtils_DwellClick.Header" xml:space="preserve">
+    <value>Dwell Click</value>
+    <comment>Dwell Click is the feature name: it clicks automatically when the pointer is held still.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick.Description" xml:space="preserve">
+    <value>Click automatically by holding the pointer still, for anyone who can move a pointer but cannot reliably press a button. The click lands wherever the pointer rests. Clicks cannot be sent to windows running as administrator.</value>
+    <comment>Pointer as in the mouse pointer/cursor.</comment>
+  </data>
+  <data name="MouseUtils_Enable_DwellClick.Header" xml:space="preserve">
+    <value>Dwell Click</value>
+    <comment>Dwell Click is the feature name.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ActivationShortcut.Header" xml:space="preserve">
+    <value>Pause or resume shortcut</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ActivationShortcut.Description" xml:space="preserve">
+    <value>Pauses dwell clicking so the pointer can rest without clicking. Press again to resume.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_CycleActionShortcut.Header" xml:space="preserve">
+    <value>Cycle action shortcut</value>
+  </data>
+  <data name="MouseUtils_DwellClick_CycleActionShortcut.Description" xml:space="preserve">
+    <value>Switches the next dwell action to the following one</value>
+  </data>
+  <data name="MouseUtils_DwellClick_PlaySound.Content" xml:space="preserve">
+    <value>Play a sound when a click fires</value>
+    <comment>A short click confirms each automatic action.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_IndicatorUseAccentColor.Content" xml:space="preserve">
+    <value>Use the Windows accent color for the ring</value>
+    <comment>The ring is the countdown that fills at the pointer.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_IndicatorColor.Header" xml:space="preserve">
+    <value>Ring color</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Options.Header" xml:space="preserve">
+    <value>Timing and actions</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Options.Description" xml:space="preserve">
+    <value>Tune how long a dwell takes, what it clicks, and how much pointer drift it tolerates.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_DwellTime.Header" xml:space="preserve">
+    <value>Dwell time (ms)</value>
+    <comment>ms is the abbreviation for milliseconds.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_DwellTime.Description" xml:space="preserve">
+    <value>How long the pointer must rest before the action fires</value>
+  </data>
+  <data name="MouseUtils_DwellClick_DefaultAction.Header" xml:space="preserve">
+    <value>Default action</value>
+  </data>
+  <data name="MouseUtils_DwellClick_DefaultAction.Description" xml:space="preserve">
+    <value>What a completed dwell does. Drag presses the left button on one dwell and releases it on the next, so you can move things without holding a button.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_LeftClick.Content" xml:space="preserve">
+    <value>Left click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_RightClick.Content" xml:space="preserve">
+    <value>Right click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_DoubleClick.Content" xml:space="preserve">
+    <value>Double-click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_MiddleClick.Content" xml:space="preserve">
+    <value>Middle click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_Action_Drag.Content" xml:space="preserve">
+    <value>Drag</value>
+  </data>
+  <data name="MouseUtils_DwellClick_RevertToDefault.Content" xml:space="preserve">
+    <value>Return to the default action after each click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_MoveTolerance.Header" xml:space="preserve">
+    <value>Movement tolerance (pixels)</value>
+  </data>
+  <data name="MouseUtils_DwellClick_MoveTolerance.Description" xml:space="preserve">
+    <value>Pointer drift the countdown ignores. Larger values help if your hand trembles.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_PostActionTolerance.Header" xml:space="preserve">
+    <value>Post-action movement (pixels)</value>
+  </data>
+  <data name="MouseUtils_DwellClick_PostActionTolerance.Description" xml:space="preserve">
+    <value>How far the pointer must move after a click before a new dwell can begin. This stops a resting pointer from clicking the same spot again.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ShowToolbar.Content" xml:space="preserve">
+    <value>Show the action toolbar</value>
+    <comment>The toolbar is an on-screen strip of buttons for choosing the dwell action.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide.Header" xml:space="preserve">
+    <value>Toolbar side</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide.Description" xml:space="preserve">
+    <value>Which edge of the screen the toolbar docks to. Hover a toolbar button for the dwell time to choose it, with no click needed.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide_Left.Content" xml:space="preserve">
+    <value>Left edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide_Right.Content" xml:space="preserve">
+    <value>Right edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide_Top.Content" xml:space="preserve">
+    <value>Top edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarSide_Bottom.Content" xml:space="preserve">
+    <value>Bottom edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarStyle.Header" xml:space="preserve">
+    <value>Toolbar style</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarStyle.Description" xml:space="preserve">
+    <value>A bar docked to the screen edge, or a single button that opens a large menu of actions in the middle of the screen. The large menu closes after you choose an action.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarStyle_Docked.Content" xml:space="preserve">
+    <value>Docked bar</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarStyle_Floating.Content" xml:space="preserve">
+    <value>Floating button with large menu</value>
+    <comment>A single small button on the screen edge. Resting the pointer on it opens a large menu of actions in the middle of the screen.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarPosition.Header" xml:space="preserve">
+    <value>Position along the edge</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarPosition.Description" xml:space="preserve">
+    <value>Where the toolbar sits on its edge, from the start (0%) to the end (100%). Move it away from content you need to reach.</value>
+    <comment>The start of the left or right edge is the top. The start of the top or bottom edge is the left.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ShowCountdown.Content" xml:space="preserve">
+    <value>Show the countdown ring at the pointer</value>
+    <comment>The ring fills up while the pointer rests, showing when the click will land.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize.Header" xml:space="preserve">
+    <value>Overlay size</value>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize.Description" xml:space="preserve">
+    <value>How large the toolbar buttons and the countdown ring are. Bigger targets are easier to rest on.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize_Small.Content" xml:space="preserve">
+    <value>Small</value>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize_Medium.Content" xml:space="preserve">
+    <value>Medium</value>
+  </data>
+  <data name="MouseUtils_DwellClick_OverlaySize_Large.Content" xml:space="preserve">
+    <value>Large</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButtons.Header" xml:space="preserve">
+    <value>Toolbar buttons</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButtons.Description" xml:space="preserve">
+    <value>Choose which actions appear on the toolbar. Pause and the collapse handle are always shown. Scroll and zoom keep repeating while the pointer rests and stay selected until you choose another action. Back, Start menu, Show desktop, Task view, and Notifications act at once in the window you were using.</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_LeftClick.Content" xml:space="preserve">
+    <value>Left click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_DoubleClick.Content" xml:space="preserve">
+    <value>Double-click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_RightClick.Content" xml:space="preserve">
+    <value>Right click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_MiddleClick.Content" xml:space="preserve">
+    <value>Middle click</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_Drag.Content" xml:space="preserve">
+    <value>Drag</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ScrollUp.Content" xml:space="preserve">
+    <value>Scroll up</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ScrollDown.Content" xml:space="preserve">
+    <value>Scroll down</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ScrollLeft.Content" xml:space="preserve">
+    <value>Scroll left</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ScrollRight.Content" xml:space="preserve">
+    <value>Scroll right</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ZoomIn.Content" xml:space="preserve">
+    <value>Zoom in</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ZoomOut.Content" xml:space="preserve">
+    <value>Zoom out</value>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_Back.Content" xml:space="preserve">
+    <value>Back</value>
+    <comment>A toolbar button that goes back, like the back button in a browser or File Explorer, in the window that was in use.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_Start.Content" xml:space="preserve">
+    <value>Start menu</value>
+    <comment>A toolbar button that opens the Windows Start menu.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_ShowDesktop.Content" xml:space="preserve">
+    <value>Show desktop</value>
+    <comment>A toolbar button that shows the Windows desktop.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_TaskView.Content" xml:space="preserve">
+    <value>Task view</value>
+    <comment>A toolbar button that opens Windows Task view.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_Notifications.Content" xml:space="preserve">
+    <value>Notifications</value>
+    <comment>A toolbar button that opens the Windows notification center.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_ToolbarButton_OpenSettings.Content" xml:space="preserve">
+    <value>Open PowerToys Settings</value>
+    <comment>A toolbar button that opens the PowerToys Settings app, since a dwell user may not be able to reach the system tray.</comment>
+  </data>
   <data name="MouseUtils_MouseButtonLock.Header" xml:space="preserve">
     <value>Mouse Button Lock</value>
     <comment>Mouse as in the hardware peripheral.</comment>
@@ -2987,6 +3195,14 @@ From there, simply click on one of the supported files in the File Explorer and 
   <data name="Oobe_MouseUtils_MouseJump_Description.Text" xml:space="preserve">
     <value>Jump the mouse pointer quickly to anywhere on your desktop.</value>
     <comment>Mouse as in the hardware peripheral.</comment>
+  </data>
+  <data name="Oobe_MouseUtils_DwellClick.Text" xml:space="preserve">
+    <value>Dwell Click</value>
+    <comment>Dwell Click is the feature name: it clicks automatically when the pointer is held still.</comment>
+  </data>
+  <data name="Oobe_MouseUtils_DwellClick_Description.Text" xml:space="preserve">
+    <value>Hold the pointer still to click automatically, with no button press needed. Choose the action, how long to hover, and how much drift to allow.</value>
+    <comment>Pointer as in the mouse pointer/cursor.</comment>
   </data>
   <data name="Oobe_MouseUtils_MouseButtonLock.Text" xml:space="preserve">
     <value>Mouse Button Lock</value>

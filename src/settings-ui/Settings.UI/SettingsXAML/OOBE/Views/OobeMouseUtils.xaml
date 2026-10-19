@@ -29,6 +29,8 @@
                 <TextBlock x:Uid="Oobe_MouseUtils_MouseJump" Style="{ThemeResource OobeSubtitleStyle}" />
                 <tkcontrols:MarkdownTextBlock x:Uid="Oobe_MouseUtils_MouseJump_Description" />
 
+                <TextBlock x:Uid="Oobe_MouseUtils_DwellClick" Style="{ThemeResource OobeSubtitleStyle}" />
+                <tkcontrols:MarkdownTextBlock x:Uid="Oobe_MouseUtils_DwellClick_Description" />
                 <TextBlock x:Uid="Oobe_MouseUtils_MousePointerCrosshairs" Style="{ThemeResource OobeSubtitleStyle}" />
                 <tkcontrols:MarkdownTextBlock x:Uid="Oobe_MouseUtils_MousePointerCrosshairs_Description" />
 

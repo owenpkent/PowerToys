@@ -33,6 +33,7 @@ The settings resource supports the following PowerToys modules:
 - **Awake** - Keep-awake timer settings.
 - **ColorPicker** - Color picker activation and format settings.
 - **CropAndLock** - Window cropping settings.
+- **DwellClick** - Automatic dwell-based clicking settings.
 - **EnvironmentVariables** - Environment variable editor settings.
 - **FancyZones** - Window layout and zone configuration.
 - **FileLocksmith** - File lock detection settings.

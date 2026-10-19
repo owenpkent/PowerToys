@@ -35,7 +35,9 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
 
         private MouseButtonLockSettings MouseButtonLockSettingsConfig { get; set; }
 
-        public MouseUtilsViewModel(SettingsUtils settingsUtils, ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<AutoHideCursorSettings> autoHideCursorSettingsRepository, ISettingsRepository<FindMyMouseSettings> findMyMouseSettingsRepository, ISettingsRepository<MouseHighlighterSettings> mouseHighlighterSettingsRepository, ISettingsRepository<MouseJumpSettings> mouseJumpSettingsRepository, ISettingsRepository<MousePointerCrosshairsSettings> mousePointerCrosshairsSettingsRepository, ISettingsRepository<CursorWrapSettings> cursorWrapSettingsRepository, ISettingsRepository<MouseButtonLockSettings> mouseButtonLockSettingsRepository, Func<string, int> ipcMSGCallBackFunc)
+        private DwellClickSettings DwellClickSettingsConfig { get; set; }
+
+        public MouseUtilsViewModel(SettingsUtils settingsUtils, ISettingsRepository<GeneralSettings> settingsRepository, ISettingsRepository<AutoHideCursorSettings> autoHideCursorSettingsRepository, ISettingsRepository<FindMyMouseSettings> findMyMouseSettingsRepository, ISettingsRepository<MouseHighlighterSettings> mouseHighlighterSettingsRepository, ISettingsRepository<MouseJumpSettings> mouseJumpSettingsRepository, ISettingsRepository<MousePointerCrosshairsSettings> mousePointerCrosshairsSettingsRepository, ISettingsRepository<CursorWrapSettings> cursorWrapSettingsRepository, ISettingsRepository<MouseButtonLockSettings> mouseButtonLockSettingsRepository, ISettingsRepository<DwellClickSettings> dwellClickSettingsRepository, Func<string, int> ipcMSGCallBackFunc)
         {
             SettingsUtils = settingsUtils;
 
@@ -163,6 +165,84 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             _mouseButtonLockMmbEnabled = MouseButtonLockSettingsConfig.Properties.MmbLockEnabled.Value;
             _mouseButtonLockHoldDurationMs = MouseButtonLockSettingsConfig.Properties.HoldDurationMs.Value;
             _mouseButtonLockMoveCancelPixels = MouseButtonLockSettingsConfig.Properties.MoveCancelPixels.Value;
+            ArgumentNullException.ThrowIfNull(dwellClickSettingsRepository);
+
+            DwellClickSettingsConfig = dwellClickSettingsRepository.SettingsConfig;
+
+            // Null-safe in case a hand-edited settings.json carries explicit nulls: repair the
+            // properties container and its members to their defaults so both the reads below and
+            // the property setters are safe (covers a "properties": null payload that would
+            // otherwise throw here).
+            DwellClickSettingsConfig.Properties ??= new DwellClickProperties();
+            DwellClickSettingsConfig.Properties.ActivationShortcut ??= DwellClickSettingsConfig.Properties.DefaultActivationShortcut;
+            DwellClickSettingsConfig.Properties.CycleActionShortcut ??= DwellClickSettingsConfig.Properties.DefaultCycleActionShortcut;
+            DwellClickSettingsConfig.Properties.DwellTimeMs ??= new IntProperty(1200);
+            DwellClickSettingsConfig.Properties.MoveTolerancePixels ??= new IntProperty(10);
+            DwellClickSettingsConfig.Properties.PostActionTolerancePixels ??= new IntProperty(10);
+            DwellClickSettingsConfig.Properties.DefaultAction ??= new IntProperty(0);
+            DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ShowToolbar ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarSide ??= new IntProperty(0);
+            DwellClickSettingsConfig.Properties.ToolbarPosition ??= new IntProperty(50);
+            DwellClickSettingsConfig.Properties.ToolbarStyle ??= new IntProperty(0);
+            DwellClickSettingsConfig.Properties.ShowCountdown ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.OverlaySize ??= new IntProperty(1);
+            DwellClickSettingsConfig.Properties.IndicatorUseAccentColor ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.IndicatorColor ??= new StringProperty("#0078D4");
+            DwellClickSettingsConfig.Properties.PlaySound ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonRightClick ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonMiddleClick ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonDrag ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonScrollUp ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonScrollDown ??= new BoolProperty(true);
+            DwellClickSettingsConfig.Properties.ToolbarButtonScrollLeft ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonScrollRight ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonZoomIn ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonZoomOut ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonBack ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonStart ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonShowDesktop ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonTaskView ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonNotifications ??= new BoolProperty(false);
+            DwellClickSettingsConfig.Properties.ToolbarButtonOpenSettings ??= new BoolProperty(true);
+
+            _dwellClickDwellTimeMs = DwellClickSettingsConfig.Properties.DwellTimeMs.Value;
+            _dwellClickMoveTolerancePixels = DwellClickSettingsConfig.Properties.MoveTolerancePixels.Value;
+            _dwellClickPostActionTolerancePixels = DwellClickSettingsConfig.Properties.PostActionTolerancePixels.Value;
+            _dwellClickDefaultAction = DwellClickSettingsConfig.Properties.DefaultAction.Value;
+            _dwellClickRevertToDefaultAfterAction = DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction.Value;
+            _dwellClickShowToolbar = DwellClickSettingsConfig.Properties.ShowToolbar.Value;
+
+            // Clamp the enumerated and percent values so a hand-edited settings.json cannot leave a
+            // ComboBox with no selection or the slider out of range.
+            _dwellClickToolbarSide = Math.Clamp(DwellClickSettingsConfig.Properties.ToolbarSide.Value, 0, 3);
+            _dwellClickToolbarPosition = Math.Clamp(DwellClickSettingsConfig.Properties.ToolbarPosition.Value, 0, 100);
+            _dwellClickToolbarStyle = Math.Clamp(DwellClickSettingsConfig.Properties.ToolbarStyle.Value, 0, 1);
+            _dwellClickShowCountdown = DwellClickSettingsConfig.Properties.ShowCountdown.Value;
+            _dwellClickOverlaySize = DwellClickSettingsConfig.Properties.OverlaySize.Value;
+            _dwellClickIndicatorUseAccentColor = DwellClickSettingsConfig.Properties.IndicatorUseAccentColor.Value;
+            string dwellClickIndicatorColor = DwellClickSettingsConfig.Properties.IndicatorColor.Value;
+            _dwellClickIndicatorColor = !string.IsNullOrEmpty(dwellClickIndicatorColor) ? dwellClickIndicatorColor : "#0078D4";
+            _dwellClickPlaySound = DwellClickSettingsConfig.Properties.PlaySound.Value;
+            _dwellClickToolbarButtonLeftClick = DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick.Value;
+            _dwellClickToolbarButtonDoubleClick = DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick.Value;
+            _dwellClickToolbarButtonRightClick = DwellClickSettingsConfig.Properties.ToolbarButtonRightClick.Value;
+            _dwellClickToolbarButtonMiddleClick = DwellClickSettingsConfig.Properties.ToolbarButtonMiddleClick.Value;
+            _dwellClickToolbarButtonDrag = DwellClickSettingsConfig.Properties.ToolbarButtonDrag.Value;
+            _dwellClickToolbarButtonScrollUp = DwellClickSettingsConfig.Properties.ToolbarButtonScrollUp.Value;
+            _dwellClickToolbarButtonScrollDown = DwellClickSettingsConfig.Properties.ToolbarButtonScrollDown.Value;
+            _dwellClickToolbarButtonScrollLeft = DwellClickSettingsConfig.Properties.ToolbarButtonScrollLeft.Value;
+            _dwellClickToolbarButtonScrollRight = DwellClickSettingsConfig.Properties.ToolbarButtonScrollRight.Value;
+            _dwellClickToolbarButtonZoomIn = DwellClickSettingsConfig.Properties.ToolbarButtonZoomIn.Value;
+            _dwellClickToolbarButtonZoomOut = DwellClickSettingsConfig.Properties.ToolbarButtonZoomOut.Value;
+            _dwellClickToolbarButtonBack = DwellClickSettingsConfig.Properties.ToolbarButtonBack.Value;
+            _dwellClickToolbarButtonStart = DwellClickSettingsConfig.Properties.ToolbarButtonStart.Value;
+            _dwellClickToolbarButtonShowDesktop = DwellClickSettingsConfig.Properties.ToolbarButtonShowDesktop.Value;
+            _dwellClickToolbarButtonTaskView = DwellClickSettingsConfig.Properties.ToolbarButtonTaskView.Value;
+            _dwellClickToolbarButtonNotifications = DwellClickSettingsConfig.Properties.ToolbarButtonNotifications.Value;
+            _dwellClickToolbarButtonOpenSettings = DwellClickSettingsConfig.Properties.ToolbarButtonOpenSettings.Value;
 
             int isEnabled = 0;
 
@@ -253,6 +333,22 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                 _mouseButtonLockEnabledStateIsGPOConfigured = false;
                 _isMouseButtonLockEnabled = GeneralSettingsConfig.Enabled.MouseButtonLock;
             }
+
+            _dwellClickEnabledGpoRuleConfiguration = GPOWrapper.GetConfiguredDwellClickEnabledValue();
+            if (_dwellClickEnabledGpoRuleConfiguration == GpoRuleConfigured.Disabled || _dwellClickEnabledGpoRuleConfiguration == GpoRuleConfigured.Enabled)
+            {
+                // Get the enabled state from GPO.
+                _dwellClickEnabledStateIsGPOConfigured = true;
+                _isDwellClickEnabled = _dwellClickEnabledGpoRuleConfiguration == GpoRuleConfigured.Enabled;
+            }
+            else
+            {
+                // Clear the cached flag so a policy retracted between refreshes (Enabled/Disabled
+                // back to Not Configured) re-enables the toggle instead of leaving it marked as
+                // policy-managed.
+                _dwellClickEnabledStateIsGPOConfigured = false;
+                _isDwellClickEnabled = GeneralSettingsConfig.Enabled.DwellClick;
+            }
         }
 
         public override Dictionary<string, HotkeySettings[]> GetAllHotkeySettings()
@@ -266,6 +362,9 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
                     GlidingCursorActivationShortcut],
                 [MouseJumpSettings.ModuleName] = [MouseJumpActivationShortcut],
                 [CursorWrapSettings.ModuleName] = [CursorWrapActivationShortcut],
+                [DwellClickSettings.ModuleName] = [
+                    DwellClickActivationShortcut,
+                    DwellClickCycleActionShortcut],
             };
 
             return hotkeysDict;
@@ -1574,6 +1673,527 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             SettingsUtils.SaveSettings(MouseButtonLockSettingsConfig.ToJsonString(), MouseButtonLockSettings.ModuleName);
         }
 
+        public bool IsDwellClickEnabled
+        {
+            get => _isDwellClickEnabled;
+            set
+            {
+                if (_dwellClickEnabledStateIsGPOConfigured)
+                {
+                    // If it's GPO configured, shouldn't be able to change this state.
+                    return;
+                }
+
+                if (_isDwellClickEnabled != value)
+                {
+                    _isDwellClickEnabled = value;
+
+                    GeneralSettingsConfig.Enabled.DwellClick = value;
+                    OnPropertyChanged(nameof(IsDwellClickEnabled));
+
+                    OutGoingGeneralSettings outgoing = new OutGoingGeneralSettings(GeneralSettingsConfig);
+                    SendConfigMSG(outgoing.ToString());
+
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool IsDwellClickEnabledGpoConfigured
+        {
+            get => _dwellClickEnabledStateIsGPOConfigured;
+        }
+
+        public HotkeySettings DwellClickActivationShortcut
+        {
+            get
+            {
+                return DwellClickSettingsConfig.Properties.ActivationShortcut;
+            }
+
+            set
+            {
+                if (DwellClickSettingsConfig.Properties.ActivationShortcut != value)
+                {
+                    DwellClickSettingsConfig.Properties.ActivationShortcut = value ?? DwellClickSettingsConfig.Properties.DefaultActivationShortcut;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public HotkeySettings DwellClickCycleActionShortcut
+        {
+            get
+            {
+                return DwellClickSettingsConfig.Properties.CycleActionShortcut;
+            }
+
+            set
+            {
+                if (DwellClickSettingsConfig.Properties.CycleActionShortcut != value)
+                {
+                    DwellClickSettingsConfig.Properties.CycleActionShortcut = value ?? DwellClickSettingsConfig.Properties.DefaultCycleActionShortcut;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickDwellTimeMs
+        {
+            get => _dwellClickDwellTimeMs;
+            set
+            {
+                if (value != _dwellClickDwellTimeMs)
+                {
+                    _dwellClickDwellTimeMs = value;
+                    DwellClickSettingsConfig.Properties.DwellTimeMs.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickMoveTolerancePixels
+        {
+            get => _dwellClickMoveTolerancePixels;
+            set
+            {
+                if (value != _dwellClickMoveTolerancePixels)
+                {
+                    _dwellClickMoveTolerancePixels = value;
+                    DwellClickSettingsConfig.Properties.MoveTolerancePixels.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickPostActionTolerancePixels
+        {
+            get => _dwellClickPostActionTolerancePixels;
+            set
+            {
+                if (value != _dwellClickPostActionTolerancePixels)
+                {
+                    _dwellClickPostActionTolerancePixels = value;
+                    DwellClickSettingsConfig.Properties.PostActionTolerancePixels.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickDefaultAction
+        {
+            get => _dwellClickDefaultAction;
+            set
+            {
+                if (value != _dwellClickDefaultAction)
+                {
+                    _dwellClickDefaultAction = value;
+                    DwellClickSettingsConfig.Properties.DefaultAction.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickRevertToDefaultAfterAction
+        {
+            get => _dwellClickRevertToDefaultAfterAction;
+            set
+            {
+                if (value != _dwellClickRevertToDefaultAfterAction)
+                {
+                    _dwellClickRevertToDefaultAfterAction = value;
+                    DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickShowToolbar
+        {
+            get => _dwellClickShowToolbar;
+            set
+            {
+                if (value != _dwellClickShowToolbar)
+                {
+                    _dwellClickShowToolbar = value;
+                    DwellClickSettingsConfig.Properties.ShowToolbar.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickToolbarSide
+        {
+            get => _dwellClickToolbarSide;
+            set
+            {
+                if (value != _dwellClickToolbarSide)
+                {
+                    _dwellClickToolbarSide = value;
+                    DwellClickSettingsConfig.Properties.ToolbarSide.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickToolbarStyle
+        {
+            get => _dwellClickToolbarStyle;
+            set
+            {
+                if (value != _dwellClickToolbarStyle)
+                {
+                    _dwellClickToolbarStyle = value;
+                    DwellClickSettingsConfig.Properties.ToolbarStyle.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickToolbarPosition
+        {
+            get => _dwellClickToolbarPosition;
+            set
+            {
+                if (value != _dwellClickToolbarPosition)
+                {
+                    _dwellClickToolbarPosition = value;
+                    DwellClickSettingsConfig.Properties.ToolbarPosition.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickShowCountdown
+        {
+            get => _dwellClickShowCountdown;
+            set
+            {
+                if (value != _dwellClickShowCountdown)
+                {
+                    _dwellClickShowCountdown = value;
+                    DwellClickSettingsConfig.Properties.ShowCountdown.Value = value;
+                    OnPropertyChanged(nameof(DwellClickIndicatorColorEnabled));
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickIndicatorUseAccentColor
+        {
+            get => _dwellClickIndicatorUseAccentColor;
+            set
+            {
+                if (value != _dwellClickIndicatorUseAccentColor)
+                {
+                    _dwellClickIndicatorUseAccentColor = value;
+                    DwellClickSettingsConfig.Properties.IndicatorUseAccentColor.Value = value;
+                    OnPropertyChanged(nameof(DwellClickIndicatorColorEnabled));
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public string DwellClickIndicatorColor
+        {
+            get
+            {
+                return _dwellClickIndicatorColor;
+            }
+
+            set
+            {
+                // The picker hands back "#AARRGGBB"; the module reads the ring color as "#RRGGBB"
+                // (the opaque form checkValidRGB accepts), so drop the alpha pair.
+                value = string.Concat("#", SettingsUtilities.ToARGBHex(value).AsSpan(3));
+                if (!value.Equals(_dwellClickIndicatorColor, StringComparison.OrdinalIgnoreCase))
+                {
+                    _dwellClickIndicatorColor = value;
+                    DwellClickSettingsConfig.Properties.IndicatorColor.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        // The custom ring color only applies while the ring is shown and the accent color is off.
+        public bool DwellClickIndicatorColorEnabled => _dwellClickShowCountdown && !_dwellClickIndicatorUseAccentColor;
+
+        public bool DwellClickPlaySound
+        {
+            get => _dwellClickPlaySound;
+            set
+            {
+                if (value != _dwellClickPlaySound)
+                {
+                    _dwellClickPlaySound = value;
+                    DwellClickSettingsConfig.Properties.PlaySound.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public int DwellClickOverlaySize
+        {
+            get => _dwellClickOverlaySize;
+            set
+            {
+                if (value != _dwellClickOverlaySize)
+                {
+                    _dwellClickOverlaySize = value;
+                    DwellClickSettingsConfig.Properties.OverlaySize.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonLeftClick
+        {
+            get => _dwellClickToolbarButtonLeftClick;
+            set
+            {
+                if (value != _dwellClickToolbarButtonLeftClick)
+                {
+                    _dwellClickToolbarButtonLeftClick = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonLeftClick.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonDoubleClick
+        {
+            get => _dwellClickToolbarButtonDoubleClick;
+            set
+            {
+                if (value != _dwellClickToolbarButtonDoubleClick)
+                {
+                    _dwellClickToolbarButtonDoubleClick = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonDoubleClick.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonRightClick
+        {
+            get => _dwellClickToolbarButtonRightClick;
+            set
+            {
+                if (value != _dwellClickToolbarButtonRightClick)
+                {
+                    _dwellClickToolbarButtonRightClick = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonRightClick.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonMiddleClick
+        {
+            get => _dwellClickToolbarButtonMiddleClick;
+            set
+            {
+                if (value != _dwellClickToolbarButtonMiddleClick)
+                {
+                    _dwellClickToolbarButtonMiddleClick = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonMiddleClick.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonDrag
+        {
+            get => _dwellClickToolbarButtonDrag;
+            set
+            {
+                if (value != _dwellClickToolbarButtonDrag)
+                {
+                    _dwellClickToolbarButtonDrag = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonDrag.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonScrollUp
+        {
+            get => _dwellClickToolbarButtonScrollUp;
+            set
+            {
+                if (value != _dwellClickToolbarButtonScrollUp)
+                {
+                    _dwellClickToolbarButtonScrollUp = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonScrollUp.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonScrollDown
+        {
+            get => _dwellClickToolbarButtonScrollDown;
+            set
+            {
+                if (value != _dwellClickToolbarButtonScrollDown)
+                {
+                    _dwellClickToolbarButtonScrollDown = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonScrollDown.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonScrollLeft
+        {
+            get => _dwellClickToolbarButtonScrollLeft;
+            set
+            {
+                if (value != _dwellClickToolbarButtonScrollLeft)
+                {
+                    _dwellClickToolbarButtonScrollLeft = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonScrollLeft.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonScrollRight
+        {
+            get => _dwellClickToolbarButtonScrollRight;
+            set
+            {
+                if (value != _dwellClickToolbarButtonScrollRight)
+                {
+                    _dwellClickToolbarButtonScrollRight = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonScrollRight.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonZoomIn
+        {
+            get => _dwellClickToolbarButtonZoomIn;
+            set
+            {
+                if (value != _dwellClickToolbarButtonZoomIn)
+                {
+                    _dwellClickToolbarButtonZoomIn = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonZoomIn.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonZoomOut
+        {
+            get => _dwellClickToolbarButtonZoomOut;
+            set
+            {
+                if (value != _dwellClickToolbarButtonZoomOut)
+                {
+                    _dwellClickToolbarButtonZoomOut = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonZoomOut.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonBack
+        {
+            get => _dwellClickToolbarButtonBack;
+            set
+            {
+                if (value != _dwellClickToolbarButtonBack)
+                {
+                    _dwellClickToolbarButtonBack = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonBack.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonStart
+        {
+            get => _dwellClickToolbarButtonStart;
+            set
+            {
+                if (value != _dwellClickToolbarButtonStart)
+                {
+                    _dwellClickToolbarButtonStart = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonStart.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonShowDesktop
+        {
+            get => _dwellClickToolbarButtonShowDesktop;
+            set
+            {
+                if (value != _dwellClickToolbarButtonShowDesktop)
+                {
+                    _dwellClickToolbarButtonShowDesktop = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonShowDesktop.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonTaskView
+        {
+            get => _dwellClickToolbarButtonTaskView;
+            set
+            {
+                if (value != _dwellClickToolbarButtonTaskView)
+                {
+                    _dwellClickToolbarButtonTaskView = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonTaskView.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonNotifications
+        {
+            get => _dwellClickToolbarButtonNotifications;
+            set
+            {
+                if (value != _dwellClickToolbarButtonNotifications)
+                {
+                    _dwellClickToolbarButtonNotifications = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonNotifications.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public bool DwellClickToolbarButtonOpenSettings
+        {
+            get => _dwellClickToolbarButtonOpenSettings;
+            set
+            {
+                if (value != _dwellClickToolbarButtonOpenSettings)
+                {
+                    _dwellClickToolbarButtonOpenSettings = value;
+                    DwellClickSettingsConfig.Properties.ToolbarButtonOpenSettings.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
+        public void NotifyDwellClickPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            OnPropertyChanged(propertyName);
+
+            SndDwellClickSettings outsettings = new SndDwellClickSettings(DwellClickSettingsConfig);
+            SndModuleSettings<SndDwellClickSettings> ipcMessage = new SndModuleSettings<SndDwellClickSettings>(outsettings);
+            SendConfigMSG(ipcMessage.ToJsonString());
+            SettingsUtils.SaveSettings(DwellClickSettingsConfig.ToJsonString(), DwellClickSettings.ModuleName);
+        }
+
         public void RefreshEnabledState()
         {
             InitializeEnabledValues();
@@ -1586,6 +2206,8 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             OnPropertyChanged(nameof(IsCursorWrapEnabled));
             OnPropertyChanged(nameof(IsMouseButtonLockEnabled));
             OnPropertyChanged(nameof(IsMouseButtonLockEnabledGpoConfigured));
+            OnPropertyChanged(nameof(IsDwellClickEnabled));
+            OnPropertyChanged(nameof(IsDwellClickEnabledGpoConfigured));
         }
 
         private Func<string, int> SendConfigMSG { get; }
@@ -1664,5 +2286,40 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private bool _mouseButtonLockMmbEnabled;
         private int _mouseButtonLockHoldDurationMs;
         private int _mouseButtonLockMoveCancelPixels;
+
+        private GpoRuleConfigured _dwellClickEnabledGpoRuleConfiguration;
+        private bool _dwellClickEnabledStateIsGPOConfigured;
+        private bool _isDwellClickEnabled;
+        private int _dwellClickDwellTimeMs;
+        private int _dwellClickMoveTolerancePixels;
+        private int _dwellClickPostActionTolerancePixels;
+        private int _dwellClickDefaultAction; // matches dwellclick::DwellAction: 0=Left, 1=Right, 2=Double, 3=Middle, 4=Drag
+        private bool _dwellClickRevertToDefaultAfterAction;
+        private bool _dwellClickShowToolbar;
+        private int _dwellClickToolbarSide; // 0=Left edge, 1=Right edge, 2=Top edge, 3=Bottom edge
+        private int _dwellClickToolbarPosition; // percent along the edge, 0 to 100
+        private int _dwellClickToolbarStyle; // 0=Docked bar, 1=Floating button with large menu
+        private bool _dwellClickShowCountdown;
+        private int _dwellClickOverlaySize; // 0=Small, 1=Medium, 2=Large
+        private bool _dwellClickIndicatorUseAccentColor;
+        private string _dwellClickIndicatorColor;
+        private bool _dwellClickPlaySound;
+        private bool _dwellClickToolbarButtonLeftClick;
+        private bool _dwellClickToolbarButtonDoubleClick;
+        private bool _dwellClickToolbarButtonRightClick;
+        private bool _dwellClickToolbarButtonMiddleClick;
+        private bool _dwellClickToolbarButtonDrag;
+        private bool _dwellClickToolbarButtonScrollUp;
+        private bool _dwellClickToolbarButtonScrollDown;
+        private bool _dwellClickToolbarButtonScrollLeft;
+        private bool _dwellClickToolbarButtonScrollRight;
+        private bool _dwellClickToolbarButtonZoomIn;
+        private bool _dwellClickToolbarButtonZoomOut;
+        private bool _dwellClickToolbarButtonBack;
+        private bool _dwellClickToolbarButtonStart;
+        private bool _dwellClickToolbarButtonShowDesktop;
+        private bool _dwellClickToolbarButtonTaskView;
+        private bool _dwellClickToolbarButtonNotifications;
+        private bool _dwellClickToolbarButtonOpenSettings;
     }
 }

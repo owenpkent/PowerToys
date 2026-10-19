@@ -776,9 +776,14 @@
     </Project>
     <Project Path="src/modules/MouseUtils/MouseJump/MouseJump.vcxproj" Id="8a08d663-4995-40e3-b42c-3f910625f284" />
     <Project Path="src/modules/MouseUtils/MousePointerCrosshairs/MousePointerCrosshairs.vcxproj" Id="eae14c0e-7a6b-45da-9080-a7d8c077ba6e" />
+    <Project Path="src/modules/MouseUtils/DwellClick/DwellClick.vcxproj" Id="113cbb33-4335-4915-9e2c-0a5f420f07e5" />
     <Project Path="src/modules/MouseUtils/MouseButtonLock/MouseButtonLock.vcxproj" Id="b550866e-10a1-4517-886c-e63d5f1f7d61" />
   </Folder>
   <Folder Name="/modules/MouseUtils/Tests/">
+    <Project Path="src/modules/MouseUtils/DwellClick.UnitTests/DwellClick.UnitTests.vcxproj" Id="f2d2a03b-ddc8-49e1-b541-bc4db1252240" />
+    <Project Path="src/modules/MouseUtils/DwellClick.FuzzingTest/DwellClick.FuzzingTest.vcxproj" Id="e3658b20-6a05-4d00-9993-32d805695ce0">
+      <Build Solution="*|ARM64" Project="false" />
+    </Project>
     <Project Path="src/modules/MouseUtils/MouseJump.Common.UnitTests/MouseJump.Common.UnitTests.csproj">
       <Platform Solution="*|ARM64" Project="ARM64" />
       <Platform Solution="*|x64" Project="x64" />

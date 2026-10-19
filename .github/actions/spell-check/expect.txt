@@ -468,6 +468,7 @@ DVASPECTINFO
 DVD
 dvr
 DVTARGETDEVICE
+dwellclick
 dwflags
 dwl
 dwm
@@ -485,6 +486,7 @@ DWMWINDOWATTRIBUTE
 DWMWINDOWMAXIMIZEDCHANGE
 DWORDLONG
 dworigin
+Dynavox
 dxgi
 Dxva
 eab
@@ -649,6 +651,7 @@ gfx
 GHND
 gitmodules
 GMEM
+gnome
 googleai
 googlegemini
 Gotchas
@@ -1077,6 +1080,7 @@ mfc
 mfcm
 Mgmt
 Microwaved
+midas
 middleclickaction
 midl
 midtones
@@ -1947,6 +1951,7 @@ tlc
 tmain
 TNP
 Toggleable
+Tobii
 tontrager
 Toolhelp
 toolsets
