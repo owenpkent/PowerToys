@@ -61,6 +61,7 @@ public class DwellClickActionTests : UITestBase
     private const int VkLWin = 0x5B;
     private const int VkBrowserBack = 0xA6;
     private const int SwRestore = 9;
+    private const uint SwpNoZOrder = 0x0004;
 
     private DwellClickActionRecorder? recorder;
 
@@ -214,6 +215,46 @@ public class DwellClickActionTests : UITestBase
         Assert.IsTrue(
             Math.Abs(after.Left - before.Left - pointerDx) <= 6 && Math.Abs(after.Top - before.Top - pointerDy) <= 6,
             $"Dragging the title bar should have moved the window with the pointer by ({pointerDx}, {pointerDy}); it moved by ({after.Left - before.Left}, {after.Top - before.Top}).");
+        Assert.IsFalse((GetAsyncKeyState(0x01) & 0x8000) != 0, "The left button was still held after the second dwell.");
+    }
+
+    [TestMethod]
+    [TestCategory("DwellClick")]
+    [TestCategory("DwellClickActions")]
+    public void DragMovesAWinUIWindowByItsCustomTitleBar()
+    {
+        // PowerToys Settings is a WinUI 3 window whose title bar is app-drawn (a non-client drag
+        // region), which takes a different path from the classic caption the recorder has.
+        var settings = new IntPtr(Session.WindowHandle);
+        WindowHelper.RestoreWindow(settings);
+        var screen = System.Windows.Forms.Screen.PrimaryScreen!.WorkingArea;
+        SetWindowPos(settings, IntPtr.Zero, screen.Left + 400, screen.Top + 120, Math.Min(1100, screen.Width - 600), Math.Min(760, screen.Height - 300), SwpNoZOrder);
+        Assert.IsTrue(WindowControl.TryBringToForeground(settings) || WindowControl.GetForegroundWindowHandle() == settings, "PowerToys Settings did not come to the foreground.");
+
+        // Choose Drag on the toolbar, starting from off the toolbar.
+        LeaveToolbar(new Point(screen.Left + (screen.Width / 2), screen.Bottom - 40));
+        DwellOnToolbar(ToolbarButton.Drag);
+
+        GetWindowRect(settings, out var before);
+        var scale = GetDpiForWindow(settings) / 96.0;
+
+        // An empty stretch of the title bar: right of the title text, left of the search box.
+        var title = new Point(before.Left + (int)(320 * scale), before.Top + (int)(18 * scale));
+
+        // Press on the title bar, move the window, and release.
+        var pressedAt = RestAt(title);
+        Thread.Sleep(SlackMs);
+        MouseHelper.MoveBy(200, 100, steps: 10);
+        var (releasedX, releasedY) = MouseHelper.GetMousePosition();
+        Thread.Sleep(DwellMs + SlackMs + SlackMs);
+
+        GetWindowRect(settings, out var after);
+        var pointerDx = releasedX - pressedAt.X;
+        var pointerDy = releasedY - pressedAt.Y;
+        Assert.IsTrue(pointerDx > 100 && pointerDy > 50, $"The pointer barely moved ({pointerDx}, {pointerDy}); the drag was not exercised.");
+        Assert.IsTrue(
+            Math.Abs(after.Left - before.Left - pointerDx) <= 6 && Math.Abs(after.Top - before.Top - pointerDy) <= 6,
+            $"Dragging the Settings title bar at ({title.X},{title.Y}) should have moved the window with the pointer by ({pointerDx}, {pointerDy}); it moved by ({after.Left - before.Left}, {after.Top - before.Top}).");
         Assert.IsFalse((GetAsyncKeyState(0x01) & 0x8000) != 0, "The left button was still held after the second dwell.");
     }
 
@@ -678,6 +719,10 @@ public class DwellClickActionTests : UITestBase
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hWnd);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

@@ -31,7 +31,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
   windows for the countdown ring, the action toolbar, and the floating large menu
 - [DwellClickActionTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickActionTests.cs)
   and [DwellClickSettingsTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickSettingsTests.cs) -
-  24 end-to-end UI tests (see [UI tests](#ui-tests))
+  25 end-to-end UI tests (see [UI tests](#ui-tests))
 
 ### Why the engine is Win32-free
 
@@ -432,7 +432,7 @@ Two classes, all in the `DwellClick` test category. They share one snapshot of t
 Dwell Click settings (`DwellClickSettingsSnapshot`) so neither restores the other's test values.
 
 [DwellClickActionTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickActionTests.cs)
-has 20 end-to-end tests, one per toolbar button. Each picks its action the way a user does, by
+has 21 end-to-end tests, at least one per toolbar button. Each picks its action the way a user does, by
 dwelling on that button of the live toolbar, then rests the pointer on a recorder window
 ([DwellClickActionRecorder.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickActionRecorder.cs))
 that logs every mouse button, wheel, drag-move, and key message it receives, and asserts on what
@@ -440,8 +440,9 @@ an application actually saw:
 
 - Left, right, double, and middle click each land once, as the right message, where the pointer
   rested.
-- Drag presses at one spot and releases at another with button-down moves in between, and also
-  moves a window by its title bar as far as the pointer went.
+- Drag presses at one spot and releases at another with button-down moves in between, and moves
+  a window by its title bar as far as the pointer went, both a classic caption and the app-drawn
+  WinUI 3 title bar of PowerToys Settings.
 - The four scrolls and both zooms repeat one notch per dwell period with the right delta and Ctrl
   state, and zoom never leaves Ctrl down.
 - The keystroke buttons are checked by the exact keys the module injects, which the recorder's
