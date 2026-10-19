@@ -13,14 +13,13 @@
 #include "trace.h"
 #include "resource.h"
 #include "DwellClickCore.h"
+#include "DwellClickInput.h"
 #include "DwellClickOverlay.h"
 
 #include <atomic>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <initializer_list>
-#include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
@@ -198,38 +197,31 @@ namespace
         return wav;
     }
 
-    // Press the keys in order, then release them in reverse, as one tagged SendInput batch so a
-    // modifier is never left down. Used by the toolbar's system commands (Back, Start, and so
-    // on), which act on the foreground window: the toolbar never activates, so that is still the
-    // window the user was in.
-    bool SendKeys(std::initializer_list<WORD> keys)
+    // Send InputSteps (see DwellClickInput.h) as one tagged SendInput batch. The tag lets the
+    // hook ignore the module's own events. Returns whether the OS accepted every event.
+    bool SendSteps(const std::vector<dwellclick::InputStep>& steps)
     {
-        std::vector<INPUT> inputs;
-        inputs.reserve(keys.size() * 2);
-        for (const WORD vk : keys)
+        std::vector<INPUT> inputs(steps.size());
+        for (size_t i = 0; i < steps.size(); ++i)
         {
-            INPUT down{};
-            down.type = INPUT_KEYBOARD;
-            down.ki.wVk = vk;
-            down.ki.dwExtraInfo = INJECTION_TAG;
-            inputs.push_back(down);
+            const dwellclick::InputStep& step = steps[i];
+            INPUT& input = inputs[i];
+            if (step.keyboard)
+            {
+                input.type = INPUT_KEYBOARD;
+                input.ki.wVk = step.vk;
+                input.ki.dwFlags = step.keyUp ? KEYEVENTF_KEYUP : 0;
+                input.ki.dwExtraInfo = INJECTION_TAG;
+            }
+            else
+            {
+                input.type = INPUT_MOUSE;
+                input.mi.dwFlags = step.mouseFlag;
+                input.mi.mouseData = static_cast<DWORD>(step.wheelDelta);
+                input.mi.dwExtraInfo = INJECTION_TAG;
+            }
         }
-        for (auto it = std::rbegin(keys); it != std::rend(keys); ++it)
-        {
-            INPUT up{};
-            up.type = INPUT_KEYBOARD;
-            up.ki.wVk = *it;
-            up.ki.dwFlags = KEYEVENTF_KEYUP;
-            up.ki.dwExtraInfo = INJECTION_TAG;
-            inputs.push_back(up);
-        }
-        const UINT sent = SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT));
-        if (sent != inputs.size())
-        {
-            Logger::warn(L"DwellClick toolbar key injection was blocked, error: {}", GetLastError());
-            return false;
-        }
-        return true;
+        return SendInput(static_cast<UINT>(inputs.size()), inputs.data(), sizeof(INPUT)) == inputs.size();
     }
 
     // One bit per mouse button for the external-hold mask: left, right, middle, X1, X2.
@@ -297,76 +289,7 @@ namespace
             // clicks the same spot. Injecting a MOUSEEVENTF_MOVE instead could fight other
             // software steering the pointer (a head or eye tracker, exactly this module's
             // audience).
-            INPUT inputs[4] = {};
-            UINT count = 0;
-            auto add = [&](DWORD flag) {
-                inputs[count].type = INPUT_MOUSE;
-                inputs[count].mi.dwFlags = flag;
-                inputs[count].mi.dwExtraInfo = INJECTION_TAG;
-                ++count;
-            };
-            auto addKey = [&](WORD vk, bool up) {
-                inputs[count].type = INPUT_KEYBOARD;
-                inputs[count].ki.wVk = vk;
-                inputs[count].ki.dwFlags = up ? KEYEVENTF_KEYUP : 0;
-                inputs[count].ki.dwExtraInfo = INJECTION_TAG;
-                ++count;
-            };
-
-            switch (kind)
-            {
-            case dwellclick::ClickKind::ScrollUp:
-            case dwellclick::ClickKind::ScrollDown:
-                // One wheel notch at the pointer; sign selects the direction.
-                add(MOUSEEVENTF_WHEEL);
-                inputs[0].mi.mouseData = kind == dwellclick::ClickKind::ScrollUp ? WHEEL_DELTA : static_cast<DWORD>(-WHEEL_DELTA);
-                break;
-            case dwellclick::ClickKind::ScrollLeft:
-            case dwellclick::ClickKind::ScrollRight:
-                // One horizontal wheel notch; a positive delta scrolls right.
-                add(MOUSEEVENTF_HWHEEL);
-                inputs[0].mi.mouseData = kind == dwellclick::ClickKind::ScrollRight ? WHEEL_DELTA : static_cast<DWORD>(-WHEEL_DELTA);
-                break;
-            case dwellclick::ClickKind::ZoomIn:
-            case dwellclick::ClickKind::ZoomOut:
-                // Ctrl plus one wheel notch, the zoom gesture browsers, Office, Explorer, and
-                // most viewers share. Ctrl is pressed and released in the same batch so it is
-                // never left down.
-                addKey(VK_CONTROL, false);
-                add(MOUSEEVENTF_WHEEL);
-                inputs[1].mi.mouseData = kind == dwellclick::ClickKind::ZoomIn ? WHEEL_DELTA : static_cast<DWORD>(-WHEEL_DELTA);
-                addKey(VK_CONTROL, true);
-                break;
-            case dwellclick::ClickKind::RightClick:
-                add(MOUSEEVENTF_RIGHTDOWN);
-                add(MOUSEEVENTF_RIGHTUP);
-                break;
-            case dwellclick::ClickKind::MiddleClick:
-                add(MOUSEEVENTF_MIDDLEDOWN);
-                add(MOUSEEVENTF_MIDDLEUP);
-                break;
-            case dwellclick::ClickKind::DoubleClick:
-                // Two rapid pairs in one SendInput batch; the OS turns them into a double
-                // click because they land well inside the double-click time and rectangle.
-                add(MOUSEEVENTF_LEFTDOWN);
-                add(MOUSEEVENTF_LEFTUP);
-                add(MOUSEEVENTF_LEFTDOWN);
-                add(MOUSEEVENTF_LEFTUP);
-                break;
-            case dwellclick::ClickKind::LeftDown:
-                add(MOUSEEVENTF_LEFTDOWN);
-                break;
-            case dwellclick::ClickKind::LeftUp:
-                add(MOUSEEVENTF_LEFTUP);
-                break;
-            case dwellclick::ClickKind::LeftClick:
-            default:
-                add(MOUSEEVENTF_LEFTDOWN);
-                add(MOUSEEVENTF_LEFTUP);
-                break;
-            }
-
-            if (SendInput(count, inputs, sizeof(INPUT)) == count)
+            if (SendSteps(dwellclick::StepsFor(kind)))
             {
                 return true;
             }
@@ -1092,23 +1015,15 @@ void DwellClick::HandleToolbarCommand(dwellclick::ToolbarCommand command)
         m_engine.SetPaused(!m_engine.IsPaused());
         break;
     case ToolbarCommand::Back:
-        // The browser Back key: Edge, Chrome, Firefox, Explorer, Settings, and most apps with
-        // history treat it as Back. A mouse back button would land on the toolbar instead.
-        SendKeys({ VK_BROWSER_BACK });
-        break;
     case ToolbarCommand::StartMenu:
-        SendKeys({ VK_LWIN });
-        break;
     case ToolbarCommand::ShowDesktop:
-        SendKeys({ VK_LWIN, 'D' });
-        break;
     case ToolbarCommand::TaskView:
-        SendKeys({ VK_LWIN, VK_TAB });
-        break;
     case ToolbarCommand::Notifications:
-        // Windows 11 opens the notification center with Win+N; Windows 10's equivalent is
-        // the Action Center on Win+A.
-        SendKeys({ VK_LWIN, static_cast<WORD>(IsWindows11OrGreater() ? 'N' : 'A') });
+        // A keystroke into the foreground window (see KeysFor in DwellClickInput.h).
+        if (!SendSteps(dwellclick::StepsForKeys(dwellclick::KeysFor(command, IsWindows11OrGreater()))))
+        {
+            Logger::warn(L"DwellClick toolbar key injection was blocked, error: {}", GetLastError());
+        }
         break;
     case ToolbarCommand::OpenSettings:
     {

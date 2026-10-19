@@ -47,6 +47,9 @@
     <ClInclude Include="DwellClickOverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DwellClickInput.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DwellClick.rc">
