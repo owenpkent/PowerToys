@@ -7,6 +7,7 @@
     <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
     <IsPackable>false</IsPackable>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <RootNamespace>MouseUtils.UITests</RootNamespace>
@@ -27,6 +28,12 @@
 
   <ItemGroup>
     <PackageReference Include="MSTest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WinForms hosts the action tests' recorder window; its implicit using would make Button,
+         CheckBox, and ComboBox ambiguous with the UITest.Next element types. -->
+    <Using Remove="System.Windows.Forms" />
   </ItemGroup>
 
   <ItemGroup>

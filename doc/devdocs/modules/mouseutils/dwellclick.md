@@ -169,6 +169,12 @@ engine, following the Mouse Button Lock module closely:
   pointer moves. A hold whose button-up the hook missed is cleared once every button reads up
   with `GetAsyncKeyState`, checked only when no button event has arrived for 500 ms because the
   hook runs before the async key state updates.
+- **What each action sends lives in one table.** `StepsFor` (each `ClickKind`) and `KeysFor`
+  (each keystroke button) in DwellClickInput.h describe the input as plain data, `SendSteps`
+  turns it into one `SendInput` batch, and InputTests.cpp pins every entry. A zoom batch holds
+  Ctrl for the instant of its notch; if the process is killed in that instant Windows can leave
+  Ctrl down until it is next pressed, which was seen when the UI-test harness killed PowerToys
+  mid-zoom.
 - **Injection is a tagged `SendInput`.** Every synthetic event carries a `dwExtraInfo` tag so the
   hook can ignore the module's own clicks; without that, every fired click would immediately
   re-lock the machine against its own echo. Only the module's own tag is filtered. `LLMHF_INJECTED`
@@ -270,7 +276,11 @@ pointer-attached countdown with an on-screen action menu:
   immediately. Both paths share the leave-to-rearm rule, so parking on Pause toggles once, not
   once per dwell time. The block names the command, not the button index, and survives a
   relayout, so collapsing or expanding with the pointer parked on the handle (which stays put at
-  position 0%) toggles once too. The gear exists because a dwell user cannot reach the tray icon: it
+  position 0%) toggles once too. It is cleared on any tick where the pointer is not over that
+  command, so a handle that moved away in the relayout can still be dwelled on. And whenever the
+  toolbar appears or moves (startup, a settings change, the large menu opening), the button that
+  lands under a resting pointer is blocked the same way (`ToolbarModel::BlockAt`): like the
+  engine, the toolbar never acts on a pointer that is merely sitting there. The gear exists because a dwell user cannot reach the tray icon: it
   launches the standard `PowerToys.exe --open-settings=MouseUtils` deep link.
 - **While the pointer is over the toolbar, the engine stays locked** (the poll loop re-asserts
   `LockUntilMove` each tick). Dwells over the toolbar therefore select buttons instead of firing
@@ -362,12 +372,29 @@ eight classes, using a recording fake injector and an explicit tick:
   scroll locking instead of retrying
 - `HorizontalScrollAndZoomActions` - the four newer actions map to their own click kinds,
   auto-repeat, never revert, and `LastDwellAction` names the end of the enum
+- `ReviewRegressions` - a rejected cleanup release keeps the drag until a retry succeeds, the
+  next dwell finishes a pending release first, and an external button hold suppresses dwelling
+  until it ends and the pointer moves
+
+(43 tests in nine classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
-28 tests over the toolbar model in six classes: layout and hit-testing, the configurable button
-set and size, the hover dwell (activation, jitter, re-arm, tick wrap), physical clicks plus
-the collapse handle, horizontal flow and wrapping (`SetLayout`, `ButtonsThatFit`), and the
-command-to-action mapping (every action has a toolbar command; system commands choose none).
+37 tests over the toolbar model in seven classes: layout and hit-testing, the configurable
+button set and size, the hover dwell (activation, jitter, re-arm, tick wrap), physical clicks
+plus the collapse handle, horizontal flow and wrapping (`SetLayout`, `ButtonsThatFit`), the
+command-to-action mapping (every action has a toolbar command; system commands choose none),
+and the review regressions: the leave-to-rearm block surviving relayout without trapping a
+moved handle, a button that appears under a resting pointer (`BlockAt`), and `FitGrid` for
+roomy, short, small high-DPI, and impossible areas.
+
+[InputTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/InputTests.cpp) has 18 tests in
+two classes that pin what each action actually sends to Windows, from
+[DwellClickInput.h](/src/modules/MouseUtils/DwellClick/DwellClickInput.h), the one table the
+module builds its `SendInput` batches from: one test per dwell action (each click kind, the
+full two-dwell drag, both wheels in both directions, and zoom as Ctrl down, wheel, Ctrl up), and
+the keys for every toolbar keystroke button (Back, Start menu, Show desktop, Task view, and
+Notifications on Windows 11 and 10). A last test in each class fails when an action or command
+is added without one.
 
 Build and run:
 
@@ -393,7 +420,35 @@ Beyond the unit tests:
 
 ### UI tests
 
-The four `DwellClick` UI tests:
+Two classes, all in the `DwellClick` test category. They share one snapshot of the user's
+Dwell Click settings (`DwellClickSettingsSnapshot`) so neither restores the other's test values.
+
+[DwellClickActionTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickActionTests.cs)
+has 20 end-to-end tests, one per toolbar button. Each picks its action the way a user does, by
+dwelling on that button of the live toolbar, then rests the pointer on a recorder window
+([DwellClickActionRecorder.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickActionRecorder.cs))
+that logs every mouse button, wheel, drag-move, and key message it receives, and asserts on what
+an application actually saw:
+
+- Left, right, double, and middle click each land once, as the right message, where the pointer
+  rested.
+- Drag presses at one spot and releases at another with button-down moves in between, and also
+  moves a window by its title bar as far as the pointer went.
+- The four scrolls and both zooms repeat one notch per dwell period with the right delta and Ctrl
+  state, and zoom never leaves Ctrl down.
+- The keystroke buttons are checked by the exact keys the module injects, which the recorder's
+  low-level keyboard hook picks out by Dwell Click's injection tag; the shell surfaces they open
+  do not reliably take the foreground in time to be observed. Back is also seen arriving at the
+  focused window, and Show desktop is also checked by its effect.
+- Pause stops clicks until pressed again, Collapse shrinks the bar to its handle and back, and
+  Open Settings restores a minimized PowerToys Settings.
+
+Each test starts with the pointer off the toolbar and fails if any modifier key is held before or
+after it, releasing it so later tests (and the user's typing) are not affected. Repeating scroll
+and zoom are paused before a test ends, because the harness kills PowerToys after every test and
+a kill in the middle of a zoom notch was seen to leave Ctrl down.
+
+The four settings tests:
 
 | Test | What it proves |
 |---|---|
@@ -402,7 +457,9 @@ The four `DwellClick` UI tests:
 | `DwellTimeAndTolerancesPersistAtBoundaries` | The dwell time and both tolerances persist at their minimum and maximum, and the dwell time reloads after restart. |
 | `ADwellCompletesADragAndASecondDwellReleasesIt` | A dwell presses and holds the left button, a second dwell releases it, and the engine re-arms for another drag. |
 
-They passed 4/4 on a host desktop against a local x64 Debug build on 2026-10-18. They have not yet
+All 24 passed on a host desktop against a local x64 Debug build on 2026-10-18 (the Show desktop
+test minimizes the user's windows and restores them, but some apps, Windows Settings among them,
+may need restoring by hand afterwards). They have not yet
 run on the Windows 10/11 VMs from the
 [local-VM UI-tests skill](/.github/skills/ui-tests-local-vm/SKILL.md). To run them on a host
 desktop:

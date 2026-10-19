@@ -57,7 +57,7 @@ public class DwellClickSettingsTests : UITestBase
     // the pointer moves beyond the movement tolerance, and pattern-based UIA interactions do
     // not move the pointer. The behavioral gestures below are the only deliberate pointer
     // moves, and they run with Settings minimized so a fired dwell lands on the desktop.
-    private static readonly IDisposable ModuleSettings = SettingsConfigHelper.PreserveModuleSettings(ModuleName);
+    static DwellClickSettingsTests() => DwellClickSettingsSnapshot.Take();
 
     public DwellClickSettingsTests()
         : base(PowerToysModule.PowerToysSettings, enableModules: new[] { ModuleName })
@@ -65,7 +65,7 @@ public class DwellClickSettingsTests : UITestBase
     }
 
     [ClassCleanup]
-    public static void RestoreModuleSettings() => ModuleSettings.Dispose();
+    public static void RestoreModuleSettings() => DwellClickSettingsSnapshot.Restore();
 
     protected override void PrepareTestState()
     {
