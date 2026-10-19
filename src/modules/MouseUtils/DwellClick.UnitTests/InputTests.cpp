@@ -208,7 +208,7 @@ namespace DwellClickInputTests
                 L"Task view");
         }
 
-        TEST_METHOD (NotificationsIsWinNOnWindows11AndWinAOnWindows10)
+        TEST_METHOD (NotificationsSendsTheNotificationCenterKeysForEachWindowsVersion)
         {
             AssertSteps(
                 { K(VK_LWIN, false), K('N', false), K('N', true), K(VK_LWIN, true) },

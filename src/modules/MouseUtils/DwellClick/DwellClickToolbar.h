@@ -337,9 +337,9 @@ namespace dwellclick
             }
 
             // Leaving the button that last activated re-arms it. The block follows the command,
-            // not the index, so a relayout that puts the same button back under a parked pointer
+            // not the index, so a layout change that puts the same button back under a parked pointer
             // (collapsing at position 0%, say) does not re-arm it. It is checked on every tick,
-            // not only when the hovered index changes: a relayout resets the hover, and a pointer
+            // not only when the hovered index changes: a layout change resets the hover, and a pointer
             // that then sits outside would otherwise never clear the block, leaving the moved
             // handle unable to fire again.
             if (m_blockedCommand && (hit < 0 || CommandFor(hit) != *m_blockedCommand))

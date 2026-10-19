@@ -303,7 +303,7 @@ public class DwellClickActionTests : UITestBase
         DwellOnToolbar(ToolbarButton.Back);
 
         // VK_BROWSER_BACK arrives as a key down, which DefWindowProc also turns into
-        // WmAppCommand(APPCOMMAND_BROWSER_BACKWARD).
+        // the browser Back app command.
         AssertKeysSent(VkBrowserBack);
         WaitFor(
             () => recorder!.All(WmKeyDown).Any(m => m.WParam == VkBrowserBack) || recorder.Count(WmAppCommand) > 0,
@@ -335,7 +335,7 @@ public class DwellClickActionTests : UITestBase
     [TestMethod]
     [TestCategory("DwellClick")]
     [TestCategory("DwellClickShell")]
-    public void NotificationsSendsWinNOnWindows11AndWinAOnWindows10()
+    public void NotificationsSendsTheNotificationCenterKeys()
     {
         StartRecorder();
         DwellOnToolbar(ToolbarButton.Notifications);

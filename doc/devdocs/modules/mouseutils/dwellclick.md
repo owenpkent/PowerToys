@@ -169,7 +169,7 @@ engine, following the Mouse Button Lock module closely:
   wakes every 15 ms (`MsgWaitForMultipleObjects` timeout) to pump messages and call `Poll`, which
   is what advances a countdown while the pointer is at rest and no messages arrive.
 - **A button held by anything else suppresses dwelling for the whole hold.** The hook tracks
-  untagged button downs and ups per button and calls `SetExternalButtonHeld`; while any is held
+  untagged button presses and releases per button and calls `SetExternalButtonHeld`; while any is held
   the engine stays locked whatever the pointer does, so a dwell can never cut short the user's
   own drag or selection (or another assistive tool's held press). Letting go locks until the
   pointer moves. A hold whose button-up the hook missed is cleared once every button reads up
@@ -194,7 +194,7 @@ engine, following the Mouse Button Lock module closely:
   loop consumes into `LockUntilMove`. The ordering matters: `set_config` raises the flag before
   publishing the new values (and again after), and the loop reads its settings snapshot before
   consuming the flag, so a snapshot holding any new value is always followed by the lock that
-  value requires before `Poll` runs. Otherwise a dwell time shortened mid-countdown could fire
+  value requires before `Poll` runs. Otherwise, a dwell time shortened mid-countdown could fire
   at once.
 - **A changed default action applies on the next dwell.** On that same re-lock path the poll loop
   compares the configured default with the one it last applied (`m_appliedDefaultAction`). Only
@@ -281,9 +281,9 @@ pointer-attached countdown with an on-screen action menu:
   for the dwell time, with the button filling as feedback; a physical click activates
   immediately. Both paths share the leave-to-rearm rule, so parking on Pause toggles once, not
   once per dwell time. The block names the command, not the button index, and survives a
-  relayout, so collapsing or expanding with the pointer parked on the handle (which stays put at
+  layout change, so collapsing or expanding with the pointer parked on the handle (which stays put at
   position 0%) toggles once too. It is cleared on any tick where the pointer is not over that
-  command, so a handle that moved away in the relayout can still be dwelled on. And whenever the
+  command, so a handle that moved away in the new layout can still be dwelled on. And whenever the
   toolbar appears or moves (startup, a settings change, the large menu opening), the button that
   lands under a resting pointer is blocked the same way (`ToolbarModel::BlockAt`): like the
   engine, the toolbar never acts on a pointer that is merely sitting there. The gear exists because a dwell user cannot reach the tray icon: it
@@ -389,7 +389,7 @@ eight classes, using a recording fake injector and an explicit tick:
 button set and size, the hover dwell (activation, jitter, re-arm, tick wrap), physical clicks
 plus the collapse handle, horizontal flow and wrapping (`SetLayout`, `ButtonsThatFit`), the
 command-to-action mapping (every action has a toolbar command; system commands choose none),
-and the review regressions: the leave-to-rearm block surviving relayout without trapping a
+and the review regressions: the leave-to-rearm block surviving a layout change without trapping a
 moved handle, a button that appears under a resting pointer (`BlockAt`), and `FitGrid` for
 roomy, short, small high-DPI, and impossible areas.
 
@@ -522,7 +522,7 @@ Still to build:
   while), which would mean suppressing real clicks for the first time; and scroll buttons parked
   in the screen corners. Ease Mouse's pointer cross is left to the existing Mouse Pointer
   Crosshairs module.
-- A kill of the PowerToys process in the instant a zoom notch holds Ctrl can leave Ctrl down (see
+- Killing the PowerToys process while a zoom notch is holding Ctrl can leave Ctrl down (see
   [The module layer](#the-module-layer)); a graceful disable is not affected.
 
 Command Palette is deliberately unwired, matching the Mouse Button Lock decision: the sibling

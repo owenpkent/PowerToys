@@ -148,10 +148,10 @@ namespace DwellClickToolbarTests
     TEST_CLASS (ToolbarReviewRegressions)
     {
     public:
-        TEST_METHOD (AParkedPointerTogglesCollapseOnceThroughRelayout)
+        TEST_METHOD (AParkedPointerTogglesCollapseOnceThroughALayoutChange)
         {
             // Replays the overlay's sequence at toolbar position 0%, where the handle sits at the
-            // same spot collapsed and expanded: dispatch the toggle, then relayout (SetCollapsed,
+            // same spot collapsed and expanded: dispatch the toggle, then lay out again (SetCollapsed,
             // SetButtonSize, SetLayout), with the pointer never moving.
             ToolbarModel model;
             const PointL handle = CenterOf(model, 0);
@@ -175,9 +175,9 @@ namespace DwellClickToolbarTests
             Assert::IsTrue(model.OnPointer(handle, true, 7400, 1200).has_value());
         }
 
-        TEST_METHOD (AHandleThatMovedAwayInARelayoutCanBeDwelledOnAgain)
+        TEST_METHOD (AHandleThatMovedInALayoutChangeCanBeDwelledOnAgain)
         {
-            // Collapse by dwelling; the relayout moves the handle out from under the pointer
+            // Collapse by dwelling; the new layout moves the handle out from under the pointer
             // (any position other than 0%). The pointer is then outside the window, and dwelling
             // on the handle in its new place must expand the bar again.
             ToolbarModel model;
@@ -221,7 +221,7 @@ namespace DwellClickToolbarTests
             Assert::IsFalse(model.BlockedCommand().has_value());
         }
 
-        TEST_METHOD (APhysicalClickOnTheHandleStaysBlockedThroughRelayout)
+        TEST_METHOD (APhysicalClickOnTheHandleStaysBlockedThroughALayoutChange)
         {
             ToolbarModel model;
             const PointL handle = CenterOf(model, 0);
