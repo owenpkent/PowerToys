@@ -334,13 +334,17 @@ namespace dwellclick
             {
                 m_hoverIndex = hit;
                 m_hoverStartTick = tick;
-                // Leaving the button that last activated re-arms it. The block follows the
-                // command, not the index, so a relayout that puts the same button back under a
-                // parked pointer (collapsing at position 0%, say) does not re-arm it.
-                if (m_blockedCommand && (hit < 0 || CommandFor(hit) != *m_blockedCommand))
-                {
-                    m_blockedCommand.reset();
-                }
+            }
+
+            // Leaving the button that last activated re-arms it. The block follows the command,
+            // not the index, so a relayout that puts the same button back under a parked pointer
+            // (collapsing at position 0%, say) does not re-arm it. It is checked on every tick,
+            // not only when the hovered index changes: a relayout resets the hover, and a pointer
+            // that then sits outside would otherwise never clear the block, leaving the moved
+            // handle unable to fire again.
+            if (m_blockedCommand && (hit < 0 || CommandFor(hit) != *m_blockedCommand))
+            {
+                m_blockedCommand.reset();
             }
 
             if (m_hoverIndex < 0 || IsBlocked(m_hoverIndex))
@@ -398,6 +402,19 @@ namespace dwellclick
         {
             m_hoverIndex = -1;
             m_hoverStartTick = 0;
+        }
+
+        // Block the button under a toolbar-local point until the pointer leaves it. The overlay
+        // calls this whenever the toolbar appears or moves: a button that lands under a resting
+        // pointer must not fire just because the pointer happens to be there, the same way the
+        // engine starts locked until the pointer moves.
+        void BlockAt(PointL local)
+        {
+            const int hit = HitTest(local);
+            if (hit >= 0)
+            {
+                m_blockedCommand = CommandFor(hit);
+            }
         }
 
         // The command that activated last and has not been left yet, if any.

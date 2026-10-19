@@ -420,6 +420,19 @@ namespace dwellclick
         SetWindowPos(m_toolbar, HWND_TOPMOST, m_toolbarRect.left, m_toolbarRect.top, width, height, SWP_NOACTIVATE);
         m_toolbarRect.right = m_toolbarRect.left + width;
         m_toolbarRect.bottom = m_toolbarRect.top + height;
+
+        // The toolbar just appeared or moved. A button that landed under a resting pointer
+        // (at startup, after a settings change, or when the floating menu opens) must wait for
+        // the pointer to leave it, or it would fire after one dwell with nobody aiming at it.
+        POINT cursor{};
+        if (GetCursorPos(&cursor) && PtInRect(&m_toolbarRect, cursor))
+        {
+            m_model.BlockAt(PointL{
+                static_cast<long>((static_cast<double>(cursor.x) - m_toolbarRect.left) / scale),
+                static_cast<long>((static_cast<double>(cursor.y) - m_toolbarRect.top) / scale),
+            });
+        }
+
         m_lastPaintedHover = -2; // force the next paint
         PaintToolbar(m_lastTick, m_lastDwellMs);
     }

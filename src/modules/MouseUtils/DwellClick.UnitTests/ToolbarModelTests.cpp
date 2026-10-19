@@ -175,6 +175,52 @@ namespace DwellClickToolbarTests
             Assert::IsTrue(model.OnPointer(handle, true, 7400, 1200).has_value());
         }
 
+        TEST_METHOD (AHandleThatMovedAwayInARelayoutCanBeDwelledOnAgain)
+        {
+            // Collapse by dwelling; the relayout moves the handle out from under the pointer
+            // (any position other than 0%). The pointer is then outside the window, and dwelling
+            // on the handle in its new place must expand the bar again.
+            ToolbarModel model;
+            const PointL handle = CenterOf(model, 0);
+            model.OnPointer(handle, true, 0, 1200);
+            Assert::IsTrue(model.OnPointer(handle, true, 1200, 1200).has_value());
+            model.SetCollapsed(true);
+            model.SetButtonSize(ToolbarModel::DefaultButtonSize);
+            model.SetLayout(ToolbarOrientation::Vertical, 0);
+
+            model.OnPointer(PointL{ -100, -100 }, false, 2500, 1200);
+            model.OnPointer(handle, true, 2600, 1200);
+            const auto expanded = model.OnPointer(handle, true, 3800, 1200);
+            Assert::IsTrue(expanded.has_value(), L"The moved handle stayed blocked after the pointer left and returned.");
+            Assert::IsTrue(*expanded == ToolbarCommand::ToggleCollapse);
+        }
+
+        TEST_METHOD (AButtonThatAppearsUnderARestingPointerWaitsForItToLeave)
+        {
+            // The toolbar appears (startup, a settings change) with the pointer already resting
+            // on Pause: the overlay blocks that button, so resting there never toggles pause.
+            ToolbarModel model;
+            const int pause = model.IndexOf(ToolbarCommand::TogglePause);
+            const PointL onPause = CenterOf(model, pause);
+            model.BlockAt(onPause);
+            for (uint64_t tick = 0; tick <= 5000; tick += 15)
+            {
+                Assert::IsFalse(model.OnPointer(onPause, true, tick, 500).has_value());
+            }
+
+            // Moving off and back is a deliberate choice, and works as usual.
+            model.OnPointer(PointL{ -50, -50 }, false, 5100, 500);
+            model.OnPointer(onPause, true, 5200, 500);
+            Assert::IsTrue(model.OnPointer(onPause, true, 5700, 500).has_value());
+        }
+
+        TEST_METHOD (BlockAtOnAGapBlocksNothing)
+        {
+            ToolbarModel model;
+            model.BlockAt(PointL{ 0, 0 }); // padding corner
+            Assert::IsFalse(model.BlockedCommand().has_value());
+        }
+
         TEST_METHOD (APhysicalClickOnTheHandleStaysBlockedThroughRelayout)
         {
             ToolbarModel model;
