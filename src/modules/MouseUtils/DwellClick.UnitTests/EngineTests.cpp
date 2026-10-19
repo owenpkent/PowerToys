@@ -319,7 +319,7 @@ namespace DwellClickEngineTests
             e.Poll(50, s); // countdown half spent
 
             // Picking an action mid-countdown must not let the remaining time fire the new action
-            // on a target the user was not aiming at.
+            // on a target that the user was not aiming at.
             e.SetNextAction(DwellAction::DoubleClick);
             Assert::IsFalse(e.Poll(100, s).fired);
             Assert::IsFalse(e.Poll(10000, s).fired);
@@ -644,7 +644,7 @@ namespace DwellClickEngineTests
             Assert::IsTrue(injector.calls[0].kind == ClickKind::ScrollDown);
         }
 
-        TEST_METHOD (MovementReanchorsTheRepeatingScroll)
+        TEST_METHOD (MovementRestartsTheRepeatingScrollAtTheNewSpot)
         {
             FakeInjector injector;
             Engine e(injector);
@@ -675,6 +675,103 @@ namespace DwellClickEngineTests
 
             // Locked, exactly like a failed click: no retry while the pointer rests there.
             Assert::IsFalse(e.Poll(10000, s).fired);
+            Assert::AreEqual(static_cast<size_t>(1), injector.Count());
+        }
+    };
+
+    TEST_CLASS (ReviewRegressions)
+    {
+    public:
+        // Starts a drag: the first dwell presses and holds the left button.
+        static void PressDrag(Engine& e, FakeInjector& injector, const Settings& s)
+        {
+            e.SetNextAction(DwellAction::Drag);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(100, s).fired);
+            Assert::IsTrue(e.IsDragging());
+            Assert::IsTrue(injector.calls.back().kind == ClickKind::LeftDown);
+        }
+
+        TEST_METHOD (AFailedCleanupReleaseKeepsTheDragUntilARetrySucceeds)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+            PressDrag(e, injector, s);
+
+            // Pause tries to release the held button, and the OS rejects it.
+            injector.succeed = false;
+            e.SetPaused(true);
+            Assert::IsTrue(e.IsDragging(), L"A rejected release must not drop ownership of the held button.");
+
+            // Once injection works again, a retry releases it.
+            injector.succeed = true;
+            Assert::IsTrue(e.ReleaseDrag());
+            Assert::IsFalse(e.IsDragging());
+            Assert::IsTrue(injector.calls.back().kind == ClickKind::LeftUp);
+            Assert::AreEqual(static_cast<size_t>(3), injector.Count()); // down, rejected up, up
+        }
+
+        TEST_METHOD (ADwellAfterAFailedCleanupReleaseFinishesTheReleaseFirst)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+            PressDrag(e, injector, s);
+
+            // Switching to Left click tries to release the drag, and the OS rejects it.
+            injector.succeed = false;
+            e.ReleaseDrag();
+            e.SetNextAction(DwellAction::LeftClick);
+            injector.succeed = true;
+
+            // The next dwell releases the held button instead of clicking on top of it...
+            e.OnMove(PointL{ 300, 300 }, 200, s);
+            const PollResult first = e.Poll(300, s);
+            Assert::IsTrue(first.fired);
+            Assert::IsTrue(injector.calls.back().kind == ClickKind::LeftUp);
+            Assert::IsFalse(e.IsDragging());
+
+            // ...and the dwell after that runs the chosen action.
+            e.OnMove(PointL{ 500, 500 }, 400, s);
+            Assert::IsTrue(e.Poll(500, s).fired);
+            Assert::IsTrue(injector.calls.back().kind == ClickKind::LeftClick);
+        }
+
+        TEST_METHOD (AnExternalHoldSuppressesDwellingThroughMovement)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+            Arm(e, s);
+
+            // The user presses and holds a button, then drags far past the tolerance and rests.
+            e.OnPhysicalClick();
+            e.SetExternalButtonHeld(true);
+            e.OnMove(PointL{ 400, 400 }, 50, s);
+            e.OnMove(PointL{ 800, 600 }, 80, s);
+            Assert::IsFalse(e.Poll(5000, s).fired);
+            Assert::AreEqual(0.0, e.Poll(6000, s).progress);
+            Assert::AreEqual(static_cast<size_t>(0), injector.Count());
+        }
+
+        TEST_METHOD (ReleasingAnExternalHoldNeedsFreshMovement)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+            Arm(e, s);
+
+            e.SetExternalButtonHeld(true);
+            e.OnMove(PointL{ 400, 400 }, 50, s);
+            e.SetExternalButtonHeld(false);
+
+            // Resting at the release point does nothing...
+            Assert::IsFalse(e.Poll(5000, s).fired);
+
+            // ...but deliberate movement afterwards re-arms the machine as usual.
+            e.OnMove(PointL{ 500, 500 }, 5100, s);
+            Assert::IsTrue(e.Poll(5200, s).fired);
             Assert::AreEqual(static_cast<size_t>(1), injector.Count());
         }
     };

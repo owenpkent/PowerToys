@@ -146,10 +146,10 @@ namespace dwellclick
         {
             m_current = pt;
 
-            if (m_paused)
+            if (m_paused || m_externalHold)
             {
-                // Keep tracking the position so the anchor is current when the user resumes, but
-                // never let movement arm the machine while paused.
+                // Keep tracking the position so the anchor is current when the user resumes (or
+                // lets go of a button they are holding), but never let movement arm the machine.
                 return;
             }
 
@@ -185,7 +185,7 @@ namespace dwellclick
             result.action = m_nextAction;
             result.point = m_current;
 
-            if (m_paused || m_locked)
+            if (m_paused || m_locked || m_externalHold)
             {
                 return result;
             }
@@ -231,7 +231,7 @@ namespace dwellclick
 
         // Choose the action the next dwell will fire. Locks until the pointer moves: the elapsed
         // countdown was started with the previous action in mind, so letting it run on would fire
-        // the newly chosen action almost immediately, on a target the user was not aiming at.
+        // the newly chosen action almost immediately, on a target that the user was not aiming at.
         void SetNextAction(DwellAction action)
         {
             m_nextAction = action;
@@ -277,6 +277,26 @@ namespace dwellclick
             LockUntilMove();
         }
 
+        // Report whether any mouse button is being held by something other than this module (the
+        // user's own hand, or another assistive tool's injected press). While one is held the
+        // machine stays locked whatever the pointer does: the user is dragging or selecting, and
+        // a dwell landing mid-hold would cut their gesture short. Letting go locks until the
+        // pointer moves away from the release point, the same rule as a physical click.
+        void SetExternalButtonHeld(bool held)
+        {
+            if (held == m_externalHold)
+            {
+                return;
+            }
+            m_externalHold = held;
+            LockUntilMove();
+        }
+
+        bool IsExternalButtonHeld() const
+        {
+            return m_externalHold;
+        }
+
         // Lock until the pointer moves past the ordinary tolerance. Call on any live settings
         // change: shortening the dwell time against an already-running countdown would otherwise
         // fire the moment the new value is applied.
@@ -287,16 +307,22 @@ namespace dwellclick
             m_anchor = m_current;
         }
 
-        // Release a drag that is still in progress (pause, disable, shutdown). Returns true if a
-        // button was actually released, so callers can log it.
+        // Release a drag that is still in progress (pause, action change, disable, shutdown).
+        // Returns true if a button was actually released, so callers can log it. A release the OS
+        // rejects leaves the drag in progress: the button is still down, so the engine keeps
+        // owning it, and the next ReleaseDrag or the next dwell (see FireAction) tries again.
         bool ReleaseDrag()
         {
             if (!m_dragging)
             {
                 return false;
             }
+            if (!m_injector.Inject(ClickKind::LeftUp, m_current))
+            {
+                return false;
+            }
             m_dragging = false;
-            return m_injector.Inject(ClickKind::LeftUp, m_current);
+            return true;
         }
 
         bool IsDragging() const
@@ -372,6 +398,20 @@ namespace dwellclick
         // action stuck halfway.
         bool FireAction(DwellAction action, const Settings& s)
         {
+            if (m_dragging && action != DwellAction::Drag)
+            {
+                // A drag whose cleanup release failed (on pause or an action change) still holds
+                // the left button. This dwell finishes that release instead of firing the new
+                // action on top of a held button; the next dwell runs the chosen action.
+                m_firedAction = DwellAction::Drag;
+                if (!m_injector.Inject(ClickKind::LeftUp, m_current))
+                {
+                    return false;
+                }
+                m_dragging = false;
+                return true;
+            }
+
             m_firedAction = action;
 
             if (IsRepeatingAction(action))
@@ -462,6 +502,7 @@ namespace dwellclick
         bool m_lockedAfterAction = false;
         bool m_paused = false;
         bool m_dragging = false;
+        bool m_externalHold = false;
 
         DwellAction m_nextAction = DwellAction::LeftClick;
         DwellAction m_firedAction = DwellAction::LeftClick;

@@ -478,18 +478,28 @@ namespace dwellclick
     void Overlay::LayoutMenu(const RECT& work, double scale)
     {
         // The floating style's large menu: a near-square grid of big buttons centered on the
-        // work area, shrunk to fewer columns only if the screen is too narrow.
-        m_model.SetButtonSize(MENU_BUTTON_SIZES[ClampSizeIndex(m_settings.overlaySize)]);
-        const int count = static_cast<int>(m_model.Buttons().size());
-        int columns = static_cast<int>(std::ceil(std::sqrt(static_cast<double>(count))));
-        const int fit = m_model.ButtonsThatFit(static_cast<int>((static_cast<double>(work.right) - work.left) / scale));
-        columns = columns > fit ? fit : columns;
-        m_model.SetLayout(ToolbarOrientation::Horizontal, columns);
+        // work area. It must fit in BOTH directions, so a small or high-DPI screen steps the
+        // buttons down (large menu size, then the bar's size, then smaller) until it does.
+        const int sizeIndex = ClampSizeIndex(m_settings.overlaySize);
+        const int margin = static_cast<int>(EDGE_MARGIN * scale);
+        const int availableWidth = static_cast<int>((static_cast<double>(work.right) - work.left - 2.0 * margin) / scale);
+        const int availableHeight = static_cast<int>((static_cast<double>(work.bottom) - work.top - 2.0 * margin) / scale);
+        const ToolbarModel::GridFit fit = ToolbarModel::FitGrid(
+            static_cast<int>(m_model.Buttons().size()),
+            availableWidth,
+            availableHeight,
+            { MENU_BUTTON_SIZES[sizeIndex], BUTTON_SIZES[sizeIndex], BUTTON_SIZES[0], 24 });
+        m_model.SetButtonSize(fit.buttonSize);
+        m_model.SetLayout(ToolbarOrientation::Horizontal, fit.columns);
 
         const int width = static_cast<int>(m_model.Width() * scale);
         const int height = static_cast<int>(m_model.Height() * scale);
-        const int x = work.left + ((work.right - work.left) - width) / 2;
-        const int y = work.top + ((work.bottom - work.top) - height) / 2;
+        int x = work.left + ((work.right - work.left) - width) / 2;
+        int y = work.top + ((work.bottom - work.top) - height) / 2;
+        // Never start above or left of the work area: if the grid still overflows, its first
+        // row (Close and Pause, the way out) stays on screen and the overflow goes off the end.
+        x = x < work.left + margin ? work.left + margin : x;
+        y = y < work.top + margin ? work.top + margin : y;
         m_toolbarRect = RECT{ x, y, x + width, y + height };
     }
 
@@ -629,7 +639,7 @@ namespace dwellclick
                 {
                     for (auto& point : points)
                     {
-                        // Rotate the chevron a quarter turn about the button center.
+                        // Turn the chevron by a quarter turn about the button center.
                         const Gdiplus::REAL dx = point.X - cx;
                         const Gdiplus::REAL dy = point.Y - cy;
                         point = Gdiplus::PointF{ cx - dy, cy + dx };

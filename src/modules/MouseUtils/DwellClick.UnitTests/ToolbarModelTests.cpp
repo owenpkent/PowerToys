@@ -145,6 +145,90 @@ namespace DwellClickToolbarTests
         }
     };
 
+    TEST_CLASS (ToolbarReviewRegressions)
+    {
+    public:
+        TEST_METHOD (AParkedPointerTogglesCollapseOnceThroughRelayout)
+        {
+            // Replays the overlay's sequence at toolbar position 0%, where the handle sits at the
+            // same spot collapsed and expanded: dispatch the toggle, then relayout (SetCollapsed,
+            // SetButtonSize, SetLayout), with the pointer never moving.
+            ToolbarModel model;
+            const PointL handle = CenterOf(model, 0);
+            int toggles = 0;
+            for (uint64_t tick = 0; tick <= 6000; tick += 15)
+            {
+                if (const auto command = model.OnPointer(handle, true, tick, 1200))
+                {
+                    Assert::IsTrue(*command == ToolbarCommand::ToggleCollapse);
+                    ++toggles;
+                    model.SetCollapsed(!model.IsCollapsed());
+                    model.SetButtonSize(ToolbarModel::DefaultButtonSize);
+                    model.SetLayout(ToolbarOrientation::Vertical, 0);
+                }
+            }
+            Assert::AreEqual(1, toggles);
+
+            // Leaving the handle and coming back re-arms it.
+            model.OnPointer(PointL{ -100, -100 }, false, 6100, 1200);
+            model.OnPointer(handle, true, 6200, 1200);
+            Assert::IsTrue(model.OnPointer(handle, true, 7400, 1200).has_value());
+        }
+
+        TEST_METHOD (APhysicalClickOnTheHandleStaysBlockedThroughRelayout)
+        {
+            ToolbarModel model;
+            const PointL handle = CenterOf(model, 0);
+            Assert::IsTrue(model.OnClick(handle).has_value());
+            model.SetCollapsed(true);
+            model.SetLayout(ToolbarOrientation::Vertical, 0);
+            Assert::IsFalse(model.OnPointer(handle, true, 0, 100).has_value());
+            Assert::IsFalse(model.OnPointer(handle, true, 5000, 100).has_value());
+        }
+
+        TEST_METHOD (TheLargeMenuFitsASmallHighDpiWorkArea)
+        {
+            // The review's case: 19 buttons, large size, a 1024 x 668 work area at 250%, so
+            // 409 x 267 unscaled units less the 8-unit margins.
+            const auto fit = ToolbarModel::FitGrid(19, 393, 251, { 96, 72, 40, 24 });
+            Assert::IsTrue(fit.fits);
+            ToolbarModel model;
+            std::vector<ToolbarCommand> buttons(19, ToolbarCommand::SelectLeftClick);
+            buttons[0] = ToolbarCommand::ToggleCollapse;
+            model.SetButtons(buttons);
+            model.SetButtonSize(fit.buttonSize);
+            model.SetLayout(ToolbarOrientation::Horizontal, fit.columns);
+            Assert::IsTrue(model.Width() <= 393);
+            Assert::IsTrue(model.Height() <= 251);
+        }
+
+        TEST_METHOD (TheLargeMenuKeepsItsBigSizeWhenThereIsRoom)
+        {
+            const auto fit = ToolbarModel::FitGrid(19, 2544, 1360, { 96, 72, 40, 24 });
+            Assert::IsTrue(fit.fits);
+            Assert::AreEqual(96, fit.buttonSize);
+            Assert::AreEqual(5, fit.columns); // ceil(sqrt(19))
+        }
+
+        TEST_METHOD (AShortAreaGetsMoreColumnsBeforeSmallerButtons)
+        {
+            // Two rows of 96 fit; 19 buttons then need 10 columns, which also fit.
+            const int twoRows = ToolbarModel::Padding * 2 + 2 * 96 + ToolbarModel::Gap;
+            const auto fit = ToolbarModel::FitGrid(19, 2000, twoRows, { 96, 72 });
+            Assert::IsTrue(fit.fits);
+            Assert::AreEqual(96, fit.buttonSize);
+            Assert::AreEqual(10, fit.columns);
+        }
+
+        TEST_METHOD (AnAreaTooSmallForAnySizeReportsNoFit)
+        {
+            const auto fit = ToolbarModel::FitGrid(19, 60, 60, { 96, 24 });
+            Assert::IsFalse(fit.fits);
+            Assert::AreEqual(24, fit.buttonSize); // the smallest candidate, for the pinned fallback
+            Assert::IsTrue(fit.columns >= 1);
+        }
+    };
+
     TEST_CLASS (ToolbarCommandActions)
     {
     public:

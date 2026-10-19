@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <cmath>
 #include <cstdint>
+#include <initializer_list>
 #include <optional>
 #include <vector>
 
@@ -224,8 +226,52 @@ namespace dwellclick
         // Always at least 1, so a tiny screen still shows a usable column of buttons.
         int ButtonsThatFit(int available) const
         {
-            const int fit = (available - 2 * Padding + Gap) / (m_buttonSize + Gap);
-            return fit < 1 ? 1 : fit;
+            return Fit(available, m_buttonSize);
+        }
+
+        static constexpr int Fit(int available, int buttonSize)
+        {
+            // 64-bit so an extreme available length cannot overflow; the result is at most
+            // INT_MAX / step, which fits back in an int.
+            const long long step = static_cast<long long>(buttonSize < 1 ? 1 : buttonSize) + Gap;
+            const long long fit = (static_cast<long long>(available) - 2 * Padding + Gap) / step;
+            return fit < 1 ? 1 : static_cast<int>(fit);
+        }
+
+        // How the floating style's large menu fills an area: the button size and column count.
+        // fits is false only when even the smallest candidate size overflows; the caller then
+        // pins the menu to the area's top-left so its first row (Close and Pause) stays reachable.
+        struct GridFit
+        {
+            int buttonSize = DefaultButtonSize;
+            int columns = 1;
+            bool fits = true;
+        };
+
+        // Try each candidate size, largest first, and take the first at which all count buttons
+        // fit in availableWidth x availableHeight (unscaled units). The grid stays as square as
+        // the area allows: at least ceil(sqrt(count)) columns, more if the rows would not fit.
+        static GridFit FitGrid(int count, int availableWidth, int availableHeight, std::initializer_list<int> sizes)
+        {
+            const int n = count < 1 ? 1 : count;
+            GridFit result;
+            for (const int size : sizes)
+            {
+                const int maxColumns = Fit(availableWidth, size);
+                const int maxRows = Fit(availableHeight, size);
+                result.buttonSize = size;
+                result.columns = maxColumns;
+                result.fits = static_cast<long long>(maxColumns) * maxRows >= n;
+                if (result.fits)
+                {
+                    int columns = static_cast<int>(std::ceil(std::sqrt(static_cast<double>(n))));
+                    const int forRows = (n + maxRows - 1) / maxRows;
+                    columns = columns < forRows ? forRows : columns;
+                    result.columns = columns > maxColumns ? maxColumns : columns;
+                    return result;
+                }
+            }
+            return result;
         }
 
         // Buttons on one line, and the number of lines, for what is currently visible.
@@ -288,14 +334,16 @@ namespace dwellclick
             {
                 m_hoverIndex = hit;
                 m_hoverStartTick = tick;
-                // Leaving the button that last activated re-arms it.
-                if (m_blockedIndex >= 0 && hit != m_blockedIndex)
+                // Leaving the button that last activated re-arms it. The block follows the
+                // command, not the index, so a relayout that puts the same button back under a
+                // parked pointer (collapsing at position 0%, say) does not re-arm it.
+                if (m_blockedCommand && (hit < 0 || CommandFor(hit) != *m_blockedCommand))
                 {
-                    m_blockedIndex = -1;
+                    m_blockedCommand.reset();
                 }
             }
 
-            if (m_hoverIndex < 0 || m_hoverIndex == m_blockedIndex)
+            if (m_hoverIndex < 0 || IsBlocked(m_hoverIndex))
             {
                 return std::nullopt;
             }
@@ -309,8 +357,8 @@ namespace dwellclick
                 return std::nullopt;
             }
 
-            m_blockedIndex = m_hoverIndex;
-            return CommandFor(m_hoverIndex);
+            m_blockedCommand = CommandFor(m_hoverIndex);
+            return m_blockedCommand;
         }
 
         // A physical click activates immediately, with the same leave-to-rearm rule.
@@ -322,14 +370,14 @@ namespace dwellclick
                 return std::nullopt;
             }
             m_hoverIndex = hit;
-            m_blockedIndex = hit;
-            return CommandFor(hit);
+            m_blockedCommand = CommandFor(hit);
+            return m_blockedCommand;
         }
 
         // The countdown fill for painting: 0 when nothing is charging, 1 at activation.
         double HoverProgress(uint64_t tick, int dwellMs) const
         {
-            if (m_hoverIndex < 0 || m_hoverIndex == m_blockedIndex)
+            if (m_hoverIndex < 0 || IsBlocked(m_hoverIndex))
             {
                 return 0.0;
             }
@@ -344,14 +392,26 @@ namespace dwellclick
             return m_hoverIndex;
         }
 
+        // Forget the running hover (the buttons moved). The leave-to-rearm block is kept: it
+        // names a command, and only the pointer leaving that command's button clears it.
         void ResetHover()
         {
             m_hoverIndex = -1;
-            m_blockedIndex = -1;
             m_hoverStartTick = 0;
         }
 
+        // The command that activated last and has not been left yet, if any.
+        std::optional<ToolbarCommand> BlockedCommand() const
+        {
+            return m_blockedCommand;
+        }
+
     private:
+        bool IsBlocked(int index) const
+        {
+            return m_blockedCommand && CommandFor(index) == *m_blockedCommand;
+        }
+
         // The extent of count buttons in a row, with the outer padding.
         int Span(int count) const
         {
@@ -365,7 +425,7 @@ namespace dwellclick
         int m_buttonSize = DefaultButtonSize;
         bool m_collapsed = false;
         int m_hoverIndex = -1;
-        int m_blockedIndex = -1;
+        std::optional<ToolbarCommand> m_blockedCommand;
         uint64_t m_hoverStartTick = 0;
     };
 }

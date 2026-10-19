@@ -232,6 +232,43 @@ namespace
         return true;
     }
 
+    // One bit per mouse button for the external-hold mask: left, right, middle, X1, X2.
+    uint8_t ButtonBit(WPARAM message, DWORD mouseData)
+    {
+        switch (message)
+        {
+        case WM_LBUTTONDOWN:
+        case WM_LBUTTONUP:
+            return 0x01;
+        case WM_RBUTTONDOWN:
+        case WM_RBUTTONUP:
+            return 0x02;
+        case WM_MBUTTONDOWN:
+        case WM_MBUTTONUP:
+            return 0x04;
+        case WM_XBUTTONDOWN:
+        case WM_XBUTTONUP:
+            return HIWORD(mouseData) == XBUTTON2 ? 0x10 : 0x08;
+        default:
+            return 0;
+        }
+    }
+
+    // Whether any mouse button currently reads down. Used only to clear an external hold whose
+    // button-up the hook missed, so it checks every button rather than mapping each bit (the
+    // swap-buttons setting makes that mapping ambiguous).
+    bool AnyMouseButtonDown()
+    {
+        for (const int vk : { VK_LBUTTON, VK_RBUTTON, VK_MBUTTON, VK_XBUTTON1, VK_XBUTTON2 })
+        {
+            if ((GetAsyncKeyState(vk) & 0x8000) != 0)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Windows 11 is Windows 10.0 from build 22000 (the same check common/utils/package.h makes,
     // without pulling in its packaging dependencies).
     bool IsWindows11OrGreater()
@@ -406,6 +443,13 @@ private:
     // unrelated settings change must not discard an action picked on the toolbar.
     dwellclick::DwellAction m_appliedDefaultAction = dwellclick::DwellAction::LeftClick;
 
+    // Mouse buttons currently held by something other than this module (ButtonBit per button).
+    // Touched only on the hook thread (the hook callback and the poll loop) after enable() resets
+    // it before that thread starts, so it needs no synchronization.
+    uint8_t m_externalButtonsHeld = 0;
+    uint64_t m_lastButtonEventTick = 0;
+    static constexpr uint64_t STALE_HOLD_CHECK_MS = 500;
+
     // The shortcuts. Only touched on the runner thread (constructor, set_config, get_hotkeys),
     // so they need no synchronization.
     Hotkey m_pauseHotkey = { .win = true, .ctrl = false, .shift = true, .alt = false, .key = DEFAULT_PAUSE_HOTKEY_VK };
@@ -439,7 +483,7 @@ private:
     void HandleMouseMessage(WPARAM wParam, const MSLLHOOKSTRUCT* data);
     void HandleToolbarCommand(dwellclick::ToolbarCommand command);
 
-    // Whether the cycle shortcut may land on an action: the default action always, otherwise
+    // Whether the cycle shortcut may land on an action: the default action always; otherwise
     // only an action whose toolbar button is switched on in Settings.
     bool IsActionOffered(dwellclick::DwellAction action) const;
 
@@ -495,11 +539,17 @@ public:
             PowerToysSettings::PowerToyValues values =
                 PowerToysSettings::PowerToyValues::from_json_string(config, get_key());
 
-            parse_settings(values);
-
             // Any live settings change must lock the machine until the pointer moves:
             // shortening the dwell time against an already-running countdown would otherwise
             // fire the moment the new value lands. The hook thread applies it (see the flag).
+            //
+            // Raised BEFORE the values are published: the hook thread reads its settings
+            // snapshot first and consumes the flag after, so if it sees any new value it also
+            // sees the flag, and locks before polling with that value. Raised again AFTER, so a
+            // later pass sees the complete set (the default action is applied from it); the
+            // extra lock is harmless, the pointer is in the Settings window anyway.
+            m_relockRequested.store(true);
+            parse_settings(values);
             m_relockRequested.store(true);
         }
         catch (...)
@@ -532,6 +582,8 @@ public:
             m_engine.OnMove({ pt.x, pt.y }, tick, SettingsSnapshot());
         }
         m_engine.ResetTransient(tick);
+        m_externalButtonsHeld = 0;
+        m_engine.SetExternalButtonHeld(false);
 
         // The engine only falls back to the default after an action when revert is on, so seed
         // it here; otherwise the first dwell (or every dwell, with revert off) is a left click.
@@ -868,6 +920,10 @@ void DwellClick::HookThreadMain()
             DispatchMessage(&msg);
         }
 
+        // The snapshot is read BEFORE the re-lock flag is consumed (set_config raises the flag
+        // before publishing values), so a snapshot holding any new value is always followed by
+        // the lock that value requires, before Poll can run against it.
+        const dwellclick::Settings snapshot = SettingsSnapshot();
         if (m_relockRequested.exchange(false))
         {
             m_engine.LockUntilMove();
@@ -875,16 +931,26 @@ void DwellClick::HookThreadMain()
             // A changed default takes effect on the next dwell, the way choosing it on the
             // toolbar would. Release a drag in progress first so the switch never orphans the
             // held button.
-            const dwellclick::DwellAction defaultAction = SettingsSnapshot().defaultAction;
-            if (defaultAction != m_appliedDefaultAction)
+            if (snapshot.defaultAction != m_appliedDefaultAction)
             {
-                m_appliedDefaultAction = defaultAction;
+                m_appliedDefaultAction = snapshot.defaultAction;
                 if (m_engine.IsDragging())
                 {
                     m_engine.ReleaseDrag();
                 }
-                m_engine.SetNextAction(defaultAction);
+                m_engine.SetNextAction(snapshot.defaultAction);
             }
+        }
+
+        // A button held by the user (or another tool) whose release the hook never saw, say
+        // across a secure-desktop switch, must not suppress dwelling forever: once every
+        // button reads up, the hold is over.
+        // The low-level hook runs before the system updates the async key state, so a press
+        // only just seen can still read up; the check waits until the last button event is old.
+        if (m_externalButtonsHeld != 0 && GetTickCount64() - m_lastButtonEventTick >= STALE_HOLD_CHECK_MS && !AnyMouseButtonDown())
+        {
+            m_externalButtonsHeld = 0;
+            m_engine.SetExternalButtonHeld(false);
         }
 
         if (m_pauseToggleRequested.exchange(false))
@@ -917,7 +983,6 @@ void DwellClick::HookThreadMain()
             }
         }
 
-        const dwellclick::Settings snapshot = SettingsSnapshot();
         const uint64_t tick = GetTickCount64();
         POINT cursor{};
         GetCursorPos(&cursor);
@@ -1134,8 +1199,24 @@ void DwellClick::HandleMouseMessage(WPARAM wParam, const MSLLHOOKSTRUCT* data)
     case WM_RBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_XBUTTONDOWN:
-        // The user clicked for themselves; do not stack a dwell click on top of it.
+        // The user clicked for themselves; do not stack a dwell click on top of it. While the
+        // button stays down they may be dragging or selecting, so the engine stays locked for
+        // the whole hold, not just until the next move.
+        m_externalButtonsHeld |= ButtonBit(wParam, data->mouseData);
+        m_lastButtonEventTick = GetTickCount64();
         m_engine.OnPhysicalClick();
+        m_engine.SetExternalButtonHeld(true);
+        break;
+    case WM_LBUTTONUP:
+    case WM_RBUTTONUP:
+    case WM_MBUTTONUP:
+    case WM_XBUTTONUP:
+        m_externalButtonsHeld &= static_cast<uint8_t>(~ButtonBit(wParam, data->mouseData));
+        m_lastButtonEventTick = GetTickCount64();
+        if (m_externalButtonsHeld == 0)
+        {
+            m_engine.SetExternalButtonHeld(false);
+        }
         break;
     default:
         break;

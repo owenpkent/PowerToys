@@ -7,7 +7,7 @@
 
 Dwell Click issues a mouse click automatically when the pointer is held still for a configurable
 time. It exists for people who can move a pointer but cannot reliably click it: tremor, limited fine
-motor control, RSI, or a pointer driven by a head tracker, eye tracker, joystick, or trackball.
+motor control, RSI, or a pointer driven by a head tracker, eye tracker, joystick, or track ball.
 
 ## Implementation
 
@@ -113,8 +113,10 @@ action (the module clamps `default_action` to the click actions); it is entered 
 **Drag is two dwells**, which is how every surveyed dwell product expresses click-and-drag without a
 held physical button: the first dwell presses the left button, the user moves, and the second dwell
 releases it. The action deliberately does *not* revert between the two halves, or nothing would be
-able to release the button. `ReleaseDrag` frees a held button on pause, disable, or shutdown, so the
-pointer is never left stuck.
+able to release the button. `ReleaseDrag` frees a held button on pause, an action change,
+disable, or shutdown, so the pointer is never left stuck. It clears the drag only once the
+release is accepted: if the OS rejects it, the engine keeps owning the held button, the next
+`ReleaseDrag` retries, and the next dwell finishes the release before it runs any other action.
 
 `revertToDefaultAfterAction` returns the next action to `defaultAction` once an action completes, so
 a one-off right click does not silently turn every later dwell into a right click. It defaults on
@@ -127,7 +129,7 @@ The module therefore seeds the configured default on enable and applies a change
 revert off, and the first dwell after enabling would be a left click even with revert on.
 
 `SetNextAction` locks until the pointer moves. Without that, the time already banked against the
-previous action would fire the newly chosen one almost immediately, on a target the user was not
+previous action would fire the newly chosen one almost immediately, on a target that the user was not
 aiming at.
 
 ### Pause
@@ -160,6 +162,13 @@ engine, following the Mouse Button Lock module closely:
   `OnMove` for every pointer move and `OnPhysicalClick` for every physical button-down; the loop
   wakes every 15 ms (`MsgWaitForMultipleObjects` timeout) to pump messages and call `Poll`, which
   is what advances a countdown while the pointer is at rest and no messages arrive.
+- **A button held by anything else suppresses dwelling for the whole hold.** The hook tracks
+  untagged button downs and ups per button and calls `SetExternalButtonHeld`; while any is held
+  the engine stays locked whatever the pointer does, so a dwell can never cut short the user's
+  own drag or selection (or another assistive tool's held press). Letting go locks until the
+  pointer moves. A hold whose button-up the hook missed is cleared once every button reads up
+  with `GetAsyncKeyState`, checked only when no button event has arrived for 500 ms because the
+  hook runs before the async key state updates.
 - **Injection is a tagged `SendInput`.** Every synthetic event carries a `dwExtraInfo` tag so the
   hook can ignore the module's own clicks; without that, every fired click would immediately
   re-lock the machine against its own echo. Only the module's own tag is filtered. `LLMHF_INJECTED`
@@ -170,11 +179,15 @@ engine, following the Mouse Button Lock module closely:
   The runner thread touches the engine only before the thread starts (`enable` seeds the pointer
   position, calls `ResetTransient`, and sets the next action to the configured default) or after
   it joins (`disable`). A live settings change (`set_config`) raises an atomic flag that the poll
-  loop consumes into `LockUntilMove`.
+  loop consumes into `LockUntilMove`. The ordering matters: `set_config` raises the flag before
+  publishing the new values (and again after), and the loop reads its settings snapshot before
+  consuming the flag, so a snapshot holding any new value is always followed by the lock that
+  value requires before `Poll` runs. Otherwise a dwell time shortened mid-countdown could fire
+  at once.
 - **A changed default action applies on the next dwell.** On that same re-lock path the poll loop
   compares the configured default with the one it last applied (`m_appliedDefaultAction`). Only
   when it differs does it release a held drag and call `SetNextAction`, so an unrelated change
-  (the dwell time, say) never discards an action the user picked on the toolbar.
+  (the dwell time, say) never discards an action that the user picked on the toolbar.
 - **Settings are clamped on read.** The dwell time is clamped to 100 ms - 60 s (below 100 ms every
   rest becomes a click, the exact Midas failure the engine is built to avoid), tolerances to
   0 - 10000 px, and an unknown `default_action` value falls back to `LeftClick` rather than
@@ -255,7 +268,9 @@ pointer-attached countdown with an on-screen action menu:
   bar keeps its length. Buttons activate by HOVERING
   for the dwell time, with the button filling as feedback; a physical click activates
   immediately. Both paths share the leave-to-rearm rule, so parking on Pause toggles once, not
-  once per dwell time. The gear exists because a dwell user cannot reach the tray icon: it
+  once per dwell time. The block names the command, not the button index, and survives a
+  relayout, so collapsing or expanding with the pointer parked on the handle (which stays put at
+  position 0%) toggles once too. The gear exists because a dwell user cannot reach the tray icon: it
   launches the standard `PowerToys.exe --open-settings=MouseUtils` deep link.
 - **While the pointer is over the toolbar, the engine stays locked** (the poll loop re-asserts
   `LockUntilMove` each tick). Dwells over the toolbar therefore select buttons instead of firing
@@ -267,7 +282,7 @@ pointer-attached countdown with an on-screen action menu:
 - The toolbar's hover/hit-test/re-arm logic lives in the Win32-free `ToolbarModel`
   (DwellClickToolbar.h), unit tested and driven by the fuzz target; DwellClickOverlay.cpp is the
   thin layered-window and GDI+ painting shell around it, living entirely on the hook thread so
-  the engine stays single-threaded. Glyphs are drawn as pictograms (no text), so the overlay
+  the engine stays single-threaded. Glyphs are drawn as shapes (no text), so the overlay
   needs no localized resources.
 
 Both surfaces can be turned off in Settings (`show_toolbar`, `show_countdown`), and
@@ -289,7 +304,10 @@ Placement follows Ease Mouse's dock and button-position settings:
 - `toolbar_style` 1 replaces the bar with Ease Mouse's "Big" menu: a single floating button (a
   3 x 3 dot grid) at the same edge and position. Dwelling on it opens a near-square grid of
   larger buttons (64 / 80 / 96 px for the three overlay sizes) centered on the work area, with a
-  close button in the handle's slot. It is the same window and `ToolbarModel` as the bar, with
+  close button in the handle's slot. `ToolbarModel::FitGrid` makes the grid fit the work area in
+  both directions, taking more columns or stepping the buttons down (menu size, bar size, 40 px,
+  24 px) as needed. If even 24 px overflows, the menu is pinned to the work area's top-left so
+  its first row, Close and Pause, is always reachable. It is the same window and `ToolbarModel` as the bar, with
   the handle's collapsed state meaning "menu closed". Any choice closes the menu, and the menu
   was in the middle of the screen, so the pointer is never left resting on the reappearing
   button. While the menu is open the poll loop keeps the engine locked wherever the pointer is

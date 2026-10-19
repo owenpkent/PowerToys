@@ -2207,6 +2207,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             OnPropertyChanged(nameof(IsMouseButtonLockEnabled));
             OnPropertyChanged(nameof(IsMouseButtonLockEnabledGpoConfigured));
             OnPropertyChanged(nameof(IsDwellClickEnabled));
+            OnPropertyChanged(nameof(IsDwellClickEnabledGpoConfigured));
         }
 
         private Func<string, int> SendConfigMSG { get; }

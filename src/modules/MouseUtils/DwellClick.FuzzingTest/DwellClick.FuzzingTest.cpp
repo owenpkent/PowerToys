@@ -149,6 +149,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
                 (void)toolbar.Width();
                 (void)toolbar.Height();
                 (void)toolbar.ButtonRect(toolbar.VisibleButtonCount() - 1);
+                (void)ToolbarModel::FitGrid(static_cast<int>(static_cast<int8_t>(r.u8())), static_cast<int>(r.u32()), static_cast<int>(r.u32()), { 96, 56, 24 });
             }
         }
 
@@ -169,7 +170,13 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             engine.SetPaused((op & 0x08u) != 0u);
             break;
         case 4:
+            // A physical press, optionally held (bit 3) or released (bit 4) like an external
+            // drag, so holds interleave with every other event.
             engine.OnPhysicalClick();
+            if (op & 0x08u)
+            {
+                engine.SetExternalButtonHeld((op & 0x10u) != 0u);
+            }
             break;
         case 5:
             engine.LockUntilMove();
