@@ -18,7 +18,7 @@ Mouse Utilities includes the following sub-modules:
 - **[Mouse Highlighter](mousehighlighter.md)**: Visualizes mouse clicks with customizable highlights
 - **[Mouse Jump](mousejump.md)**: Allows quick cursor movement to specific screen locations
 - **[Mouse Pointer Crosshairs](mousepointer.md)**: Displays crosshair lines that follow the mouse cursor
-- **[Dwell Click](dwellclick.md)** (in development): Clicks automatically when the pointer is held still, for users who can move a pointer but cannot reliably click it. Ships with a countdown ring at the pointer and a dwell-to-select action toolbar (clicks, drag, scroll modes, open Settings) with configurable buttons and sizes
+- **[Dwell Click](dwellclick.md)** (in development): Clicks automatically when the pointer is held still, for users who can move a pointer but cannot reliably click it. Ships with a countdown ring at the pointer and a dwell-to-select action toolbar (clicks, drag, scroll and zoom modes, Back, Start menu, Show desktop, Task view, Notifications, open Settings) with configurable buttons, sizes, edge, and position, or a floating button that opens a large menu
 - **[Mouse Button Lock](mousebuttonlock.md)**: A ClickLock equivalent for the left, right, and middle mouse buttons - hold a button to lock it down for hands-free dragging, then click any button to release (left is optional and off by default)
 
 ## Architecture

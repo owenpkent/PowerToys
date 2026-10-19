@@ -17,15 +17,21 @@ events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
-- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine
-- [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) - 35 unit tests
+- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 43
+  tests in [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp)
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
+- [DwellClickInput.h](/src/modules/MouseUtils/DwellClick/DwellClickInput.h) - what each action
+  and keystroke button sends to Windows, as data, with 18 tests in
+  [InputTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/InputTests.cpp)
 - [DwellClickToolbar.h](/src/modules/MouseUtils/DwellClick/DwellClickToolbar.h) - the toolbar's
-  Win32-free state machine, with 20 tests in
+  Win32-free state machine and layout, with 37 tests in
   [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp)
 - [DwellClickOverlay.cpp](/src/modules/MouseUtils/DwellClick/DwellClickOverlay.cpp) - the layered
-  windows for the countdown ring and the action toolbar
+  windows for the countdown ring, the action toolbar, and the floating large menu
+- [DwellClickActionTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickActionTests.cs)
+  and [DwellClickSettingsTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickSettingsTests.cs) -
+  24 end-to-end UI tests (see [UI tests](#ui-tests))
 
 ### Why the engine is Win32-free
 
@@ -410,11 +416,13 @@ Beyond the unit tests:
   arbitrary event sequences, ticks, coordinates, and settings under ASan + libFuzzer, mirroring
   `MouseButtonLock.FuzzingTest`.
 - [DwellClickSettingsTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickSettingsTests.cs)
-  covers settings persistence and one live behavior: a Drag-action dwell's held button is the one
-  externally observable effect (`GetAsyncKeyState`), so the module's enabled/disabled state and the
-  two-dwell drag are asserted through it. The suite leans on an engine guarantee for its own
-  safety: settings changes and physical clicks lock the machine until the pointer moves, so
-  pattern-driven UIA interactions cannot fire stray dwells.
+  covers settings persistence and the module's live on/off state, and
+  [DwellClickActionTests.cs](/src/modules/MouseUtils/MouseUtils.UITests.Next/DwellClickActionTests.cs)
+  covers every action end to end (see [UI tests](#ui-tests)). The settings suite observes the
+  module through a Drag-action dwell's held button (`GetAsyncKeyState`), so its enabled/disabled
+  state and the two-dwell drag are asserted through it. Both suites lean on an engine guarantee
+  for their own safety: settings changes and physical clicks lock the machine until the pointer
+  moves, so pattern-driven UIA interactions cannot fire stray dwells.
 - The DSC suite has a `DwellClick` module test
   ([SettingsResourceDwellClickModuleTest.cs](/src/dsc/v3/PowerToys.DSC.UnitTests/SettingsResourceTests/SettingsResourceDwellClickModuleTest.cs)).
 
@@ -508,6 +516,13 @@ Still to build:
   the toolbar covers action selection without them.
 - The toolbar docks to the primary monitor only; per-monitor placement (following the pointer's
   monitor) is a possible follow-up.
+- Two Ease Mouse options were considered and set aside for now: a filtered physical-button click
+  mode (a press counts only when held for the dwell time, and extra presses are ignored for a
+  while), which would mean suppressing real clicks for the first time; and scroll buttons parked
+  in the screen corners. Ease Mouse's pointer cross is left to the existing Mouse Pointer
+  Crosshairs module.
+- A kill of the PowerToys process in the instant a zoom notch holds Ctrl can leave Ctrl down (see
+  [The module layer](#the-module-layer)); a graceful disable is not affected.
 
 Command Palette is deliberately unwired, matching the Mouse Button Lock decision: the sibling
 CmdPal entries fire a module trigger event, and this module has no trigger event; activation is
