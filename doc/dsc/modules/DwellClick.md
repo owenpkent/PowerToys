@@ -94,7 +94,7 @@ selects that action (or pauses dwelling) with no click needed.
 ### ToolbarSide
 
 Sets which edge of the primary monitor the action toolbar docks to. With
-the floating button style, this is the edge the button sits on. The
+the floating button style, the button sits on this edge. The
 toolbar stays clear of the taskbar and moves with it, and with any change
 of resolution or primary monitor.
 
