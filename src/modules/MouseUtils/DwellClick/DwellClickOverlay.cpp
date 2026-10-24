@@ -476,7 +476,7 @@ namespace dwellclick
     double Overlay::ScaleAt(POINT screenPt)
     {
         // The ring follows the pointer onto any monitor, so it scales for the monitor under the
-        // pointer, not the primary one the toolbar is docked to: on a mixed-DPI setup the
+        // pointer, not the primary one the toolbar is docked to: with monitors at mixed DPI the
         // toolbar's scale would draw it too small on a 200% screen beside a 100% primary.
         UINT dpiX = 96;
         UINT dpiY = 96;
