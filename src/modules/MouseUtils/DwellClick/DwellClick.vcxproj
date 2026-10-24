@@ -92,6 +92,7 @@
     <ClInclude Include="DwellClickToolbar.h" />
     <ClInclude Include="DwellClickOverlay.h" />
     <ClInclude Include="DwellClickInput.h" />
+    <ClInclude Include="DwellClickSettingsChange.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
