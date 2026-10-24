@@ -851,13 +851,13 @@ namespace dwellclick
         m_lastPaintedProgress = hoverProgress;
     }
 
-    void Overlay::UpdateIndicator(POINT pt, double progress, bool show)
+    void Overlay::UpdateIndicator(POINT pt, double progress, int dwellMs, bool show)
     {
         if (!m_indicator)
         {
             return;
         }
-        if (!show || !m_settings.showCountdown || progress <= 0.0)
+        if (!show || !m_settings.showCountdown || !ShowCountdownRing(progress, dwellMs))
         {
             if (m_indicatorVisible)
             {

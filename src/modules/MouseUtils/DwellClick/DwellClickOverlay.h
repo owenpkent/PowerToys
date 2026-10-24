@@ -175,8 +175,9 @@ namespace dwellclick
         void SetToolbarState(const ToolbarVisualState& state);
 
         // Show the countdown ring centered on pt at the given fill, or hide it when the
-        // machine is idle (progress 0) or the ring is disabled.
-        void UpdateIndicator(POINT pt, double progress, bool show);
+        // machine is idle (progress 0), the ring is disabled, or the countdown is still too
+        // young to be a real rest (see ShowCountdownRing).
+        void UpdateIndicator(POINT pt, double progress, int dwellMs, bool show);
 
         // Whether the point is over the visible toolbar; the caller keeps the engine locked
         // there so dwells over the toolbar select buttons instead of clicking through them.
