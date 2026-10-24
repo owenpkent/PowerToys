@@ -140,7 +140,9 @@ fire.
 ### OverlaySize
 
 Sets how large the toolbar buttons and the countdown ring are. Bigger
-targets are easier to rest on.
+targets are easier to rest on. Both scale with display scaling: the
+toolbar with its monitor's, and the ring with the scaling of whichever
+monitor the pointer is on.
 
 **Type:** integer  
 **Values:** `0` = small, `1` = medium, `2` = large  
