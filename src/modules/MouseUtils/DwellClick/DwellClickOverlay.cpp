@@ -164,7 +164,7 @@ namespace
     // Draws a toolbar command's glyph centered in the button rect. Shared by the toolbar and the
     // action badge beside the countdown ring, so both always show the same picture for an
     // action. The collapse handle is not drawn here: its glyph depends on the toolbar's edge and
-    // state. backingColor is the surface the glyph sits on (Task view fills one window with it).
+    // state. backingColor is the color under the glyph (Task view fills one window with it).
     void DrawCommandGlyph(Gdiplus::Graphics& g, dwellclick::ToolbarCommand command, const Gdiplus::RectF& button, const Gdiplus::Color& glyphColor, bool paused, const Gdiplus::Color& backingColor)
     {
         using dwellclick::ToolbarCommand;
