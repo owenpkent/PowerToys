@@ -238,10 +238,11 @@ engine, following the Mouse Button Lock module closely:
   value is always followed by the lock that value requires before `Poll` runs. Otherwise, a
   dwell time shortened mid-countdown could fire at once. SettingsChangeTests.cpp runs a
   poll-loop pass in the middle of a publish to pin this.
-- **A changed default action applies on the next dwell.** On that same re-lock path the poll loop
-  compares the configured default with the one it last applied (`m_appliedDefaultAction`). Only
-  when it differs does it release a held drag and call `SetNextAction`, so an unrelated change
-  (the dwell time, say) never discards an action that the user picked on the toolbar.
+- **A changed default action applies on the next dwell.** On that same path `ApplySettingsChange`
+  compares the configured default with the one last applied (the module's
+  `m_appliedDefaultAction`). Only when it differs does it release a held drag and call
+  `SetNextAction`, so an unrelated change (the dwell time, say) never discards an action that the
+  user picked on the toolbar.
 - **Settings are clamped on read.** The dwell time is clamped to 100 ms - 60 s (below 100 ms every
   rest becomes a click, the exact Midas failure the engine is built to avoid), tolerances to
   0 - 10000 px, and an unknown `default_action` value falls back to `LeftClick` rather than
