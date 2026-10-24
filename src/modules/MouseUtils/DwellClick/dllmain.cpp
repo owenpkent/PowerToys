@@ -113,8 +113,8 @@ namespace
     constexpr ULONG_PTR INJECTION_TAG = 0x44574C43;
 
     // How often the poll loop advances the countdown while the pointer is at rest. Fine enough
-    // that a fired click lands within about a frame of the configured dwell time, and the same
-    // cadence the future countdown indicator will want for smooth progress.
+    // that a fired click lands within about a frame of the configured dwell time, and that the
+    // countdown ring fills smoothly.
     constexpr DWORD POLL_INTERVAL_MS = 15;
 
     // The poll cadence while nothing can change with time alone: no countdown, nothing on show,
@@ -127,13 +127,13 @@ namespace
     constexpr DWORD IDLE_POLL_INTERVAL_MS = 100;
 
     // Default values mirror the engine's Settings defaults (see DwellClickCore.h for their
-    // provenance); the eventual C# DwellClickProperties must match both.
+    // provenance); DwellClickProperties in Settings.UI.Library must match both.
     constexpr int DEFAULT_DWELL_TIME_MS = 1200;
     constexpr int DEFAULT_TOLERANCE_PIXELS = 10;
     constexpr int DEFAULT_REPEAT_INTERVAL_MS = 400;
 
-    // Accepted ranges when reading from settings.json. The Settings UI will constrain these,
-    // but a hand-edited file could carry out-of-range or non-finite values, so clamp on read.
+    // Accepted ranges when reading from settings.json. The Settings UI constrains these, but a
+    // hand-edited file could carry out-of-range or non-finite values, so clamp on read.
     // A dwell time under 100 ms fires on virtually every rest (the Midas touch failure the
     // engine is built to avoid); the engine itself stays defined down to 1 ms for tests.
     constexpr int MIN_DWELL_TIME_MS = 100;

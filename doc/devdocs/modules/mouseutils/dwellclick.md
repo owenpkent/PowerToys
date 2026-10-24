@@ -107,7 +107,7 @@ halving on the high-DPI one.
 
 Both comparisons are strictly greater than the threshold, so a move of exactly the tolerance still
 counts as resting. Distances are compared as squared `double`: coordinates are 32-bit and a raw
-integer product can overflow for extreme inputs, which the eventual fuzz target will drive.
+integer product can overflow for extreme inputs, which the fuzz target drives.
 
 ### Actions
 
@@ -429,8 +429,8 @@ must agree on all of these):
 
 ## Testing
 
-[EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) has 39 tests in
-eight classes, using a recording fake injector and an explicit tick:
+[EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) has 61 tests in
+thirteen classes, using a recording fake injector and an explicit tick:
 
 - `DwellCountdown` - starts locked, tolerance boundaries, firing at the threshold, progress
   reporting, and the degenerate inputs above
@@ -459,8 +459,6 @@ eight classes, using a recording fake injector and an explicit tick:
   and a scaled tolerance absorbs the same hand movement
 - `CountdownRing` - the ring waits for a fifth of a short dwell, at most 250 ms of a long one,
   and stays hidden for idle or degenerate input
-
-(61 tests in thirteen classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 38 tests over the toolbar model in seven classes: layout and hit-testing, the configurable
