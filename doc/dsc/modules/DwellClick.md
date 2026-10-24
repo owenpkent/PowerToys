@@ -128,7 +128,9 @@ of the screen. The large menu closes after an action is chosen.
 Controls whether the countdown ring is drawn at the pointer while a
 dwell is in progress. The ring appears a moment into the dwell (after a
 fifth of the dwell time, and at most 250 ms), so it does not follow a
-pointer that is still moving.
+pointer that is still moving. When the next action is anything other
+than a left click, a small badge beside the ring shows which action will
+fire.
 
 **Type:** boolean  
 **Default:** `true`
@@ -146,7 +148,8 @@ targets are easier to rest on.
 
 Sets the keyboard shortcut that pauses or resumes dwell clicking, so the
 pointer can rest without clicking. It does the same thing as the
-toolbar's pause button.
+toolbar's pause button. When the toolbar is hidden or collapsed, the
+pointer briefly shows the pause or resume symbol.
 
 **Type:** object
 **Properties:**
@@ -165,7 +168,9 @@ toolbar's pause button.
 Sets the keyboard shortcut that switches the next dwell action to the
 following one (left click, right click, double-click, middle click, drag,
 scroll up, scroll down, then back to left click). A drag in progress is
-released first. Takes the same object as `ActivationShortcut`.
+released first. When the toolbar is hidden or collapsed, the pointer
+briefly shows the symbol of the action chosen. Takes the same object as
+`ActivationShortcut`.
 
 **Type:** object
 **Default:** `Win+Shift+A`
