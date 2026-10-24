@@ -17,7 +17,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
-- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 53
+- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 56
   tests in [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp)
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
@@ -95,6 +95,12 @@ as separate settings, and it is the part of the design most easily got wrong:
 
 Only a post-action lock uses the second distance. Every other lock uses the ordinary tolerance, so a
 settings change does not require an exaggerated movement to recover from.
+
+Both distances are set in pixels at 100% display scaling. The engine compares physical pixels, so
+the module scales them by the effective dpi of the monitor under the pointer
+(`ScaledTolerance`, updated as the pointer crosses monitors): the same hand movement then counts
+the same on a 100% laptop panel and a 200% external screen, rather than tremor tolerance silently
+halving on the high-DPI one.
 
 Both comparisons are strictly greater than the threshold, so a move of exactly the tolerance still
 counts as resting. Distances are compared as squared `double`: coordinates are 32-bit and a raw
@@ -415,10 +421,12 @@ eight classes, using a recording fake injector and an explicit tick:
 - `RepeatInterval` - the first notch waits the dwell time and later notches the repeat interval,
   movement and locks go back to the full dwell, clicks ignore the interval, and a 0 ms interval
   clamps
+- `ToleranceScaling` - tolerances scale with display scaling, degenerate input stays defined,
+  and a scaled tolerance absorbs the same hand movement
 - `CountdownRing` - the ring waits for a fifth of a short dwell, at most 250 ms of a long one,
   and stays hidden for idle or degenerate input
 
-(53 tests in eleven classes in all.)
+(56 tests in twelve classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 38 tests over the toolbar model in seven classes: layout and hit-testing, the configurable

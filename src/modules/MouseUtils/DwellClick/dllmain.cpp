@@ -4,6 +4,7 @@
 
 #include "pch.h"
 #include <shellapi.h>
+#include <ShellScalingApi.h>
 #include <interface/powertoy_module_interface.h>
 #include <common/SettingsAPI/settings_objects.h>
 #include <common/utils/logger_helper.h>
@@ -26,6 +27,7 @@
 
 #include <mmsystem.h>
 #pragma comment(lib, "winmm.lib") // PlaySoundW
+#pragma comment(lib, "Shcore.lib") // GetDpiForMonitor
 
 // Dwell Click
 //
@@ -377,6 +379,13 @@ private:
     // Mouse buttons currently held by something other than this module (ButtonBit per button).
     // Touched only on the hook thread (the hook callback and the poll loop) after enable() resets
     // it before that thread starts, so it needs no synchronization.
+    // The effective dpi of the monitor under the pointer, and that monitor. The tolerances are
+    // set at 100% scaling and SettingsSnapshot scales them by this, so the same hand movement
+    // counts the same on every monitor. Written in enable() before the hook thread starts and
+    // afterwards only on the hook thread (UpdatePointerDpi), so it needs no synchronization.
+    unsigned m_pointerDpi = 96;
+    HMONITOR m_pointerMonitor = nullptr;
+
     uint8_t m_externalButtonsHeld = 0;
     uint64_t m_lastButtonEventTick = 0;
     static constexpr uint64_t STALE_HOLD_CHECK_MS = 500;
@@ -409,6 +418,7 @@ private:
     void parse_settings(PowerToysSettings::PowerToyValues& settings);
     bool ParseHotkey(const winrt::Windows::Data::Json::JsonObject& properties, const wchar_t* key, Hotkey& target, unsigned char defaultKey);
     dwellclick::Settings SettingsSnapshot() const;
+    void UpdatePointerDpi(POINT pt);
 
     void HookThreadMain();
     void HandleMouseMessage(WPARAM wParam, const MSLLHOOKSTRUCT* data);
@@ -510,6 +520,7 @@ public:
         POINT pt{};
         if (GetCursorPos(&pt))
         {
+            UpdatePointerDpi(pt);
             m_engine.OnMove({ pt.x, pt.y }, tick, SettingsSnapshot());
         }
         m_engine.ResetTransient(tick);
@@ -800,12 +811,27 @@ dwellclick::Settings DwellClick::SettingsSnapshot() const
 {
     dwellclick::Settings s;
     s.dwellTimeMs = m_dwellTimeMs.load();
-    s.moveTolerancePixels = m_moveTolerancePixels.load();
-    s.postActionTolerancePixels = m_postActionTolerancePixels.load();
+    s.moveTolerancePixels = dwellclick::ScaledTolerance(m_moveTolerancePixels.load(), m_pointerDpi);
+    s.postActionTolerancePixels = dwellclick::ScaledTolerance(m_postActionTolerancePixels.load(), m_pointerDpi);
     s.repeatIntervalMs = m_repeatIntervalMs.load();
     s.defaultAction = static_cast<dwellclick::DwellAction>(m_defaultAction.load());
     s.revertToDefaultAfterAction = m_revertToDefaultAfterAction.load();
     return s;
+}
+
+void DwellClick::UpdatePointerDpi(POINT pt)
+{
+    // MonitorFromPoint is cheap enough for every move; the dpi is only re-read when the pointer
+    // crosses onto another monitor.
+    const HMONITOR monitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+    if (monitor == m_pointerMonitor)
+    {
+        return;
+    }
+    m_pointerMonitor = monitor;
+    UINT dpiX = 96;
+    UINT dpiY = 96;
+    m_pointerDpi = (monitor && SUCCEEDED(GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY)) && dpiX > 0) ? dpiX : 96;
 }
 
 void DwellClick::HookThreadMain()
@@ -1130,6 +1156,7 @@ void DwellClick::HandleMouseMessage(WPARAM wParam, const MSLLHOOKSTRUCT* data)
     switch (wParam)
     {
     case WM_MOUSEMOVE:
+        UpdatePointerDpi(data->pt);
         m_engine.OnMove({ data->pt.x, data->pt.y }, GetTickCount64(), SettingsSnapshot());
         break;
     case WM_LBUTTONDOWN:

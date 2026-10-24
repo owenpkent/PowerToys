@@ -2959,13 +2959,13 @@ From there, simply click on one of the supported files in the File Explorer and 
     <value>Movement tolerance (pixels)</value>
   </data>
   <data name="MouseUtils_DwellClick_MoveTolerance.Description" xml:space="preserve">
-    <value>Pointer drift the countdown ignores. Larger values help if your hand trembles.</value>
+    <value>Pointer drift the countdown ignores, in pixels at 100% display scaling. Larger values help if your hand trembles.</value>
   </data>
   <data name="MouseUtils_DwellClick_PostActionTolerance.Header" xml:space="preserve">
     <value>Post-action movement (pixels)</value>
   </data>
   <data name="MouseUtils_DwellClick_PostActionTolerance.Description" xml:space="preserve">
-    <value>How far the pointer must move after a click before a new dwell can begin. This stops a resting pointer from clicking the same spot again.</value>
+    <value>How far the pointer must move after a click before a new dwell can begin, in pixels at 100% display scaling. This stops a resting pointer from clicking the same spot again.</value>
   </data>
   <data name="MouseUtils_DwellClick_ShowToolbar.Content" xml:space="preserve">
     <value>Show the action toolbar</value>

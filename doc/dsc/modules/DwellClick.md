@@ -37,17 +37,19 @@ fires.
 
 ### MoveTolerancePixels
 
-Sets the pointer drift, in pixels, that a running countdown tolerates.
-Larger values let a trembling hand complete a dwell; drift beyond the
-tolerance restarts the countdown at the new position.
+Sets the pointer drift, in pixels at 100% display scaling, that a running
+countdown tolerates. Larger values let a trembling hand complete a dwell;
+drift beyond the tolerance restarts the countdown at the new position. The
+module scales the value with the display scaling of the monitor under the
+pointer, so it covers the same hand movement on every monitor.
 
 **Type:** integer  
 **Default:** `10`
 
 ### PostActionTolerancePixels
 
-Sets how far the pointer must move after an action, in pixels, before a
-new countdown may start. This is the setting that stops a resting
+Sets how far the pointer must move after an action, in pixels at 100%
+display scaling, before a new countdown may start. This is the setting that stops a resting
 pointer from clicking the same spot repeatedly.
 
 **Type:** integer  

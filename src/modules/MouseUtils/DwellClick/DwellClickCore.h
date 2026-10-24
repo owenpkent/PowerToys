@@ -158,6 +158,26 @@ namespace dwellclick
         return progress >= threshold;
     }
 
+    // Converts a tolerance set in Settings (pixels at 100% display scaling, 96 dpi) into
+    // physical pixels for a monitor at the given dpi. The pointer reports physical pixels, so
+    // without this a 10 px tolerance on a 200% screen is only half the hand movement it is at
+    // 100%, and tremor tolerance silently gets stricter on high-DPI displays. Rounds to the
+    // nearest pixel; a dpi of 0 (unknown) leaves the value unscaled, and negative input is 0.
+    constexpr int ScaledTolerance(int pixelsAt96Dpi, unsigned dpi)
+    {
+        if (pixelsAt96Dpi <= 0)
+        {
+            return 0;
+        }
+        if (dpi == 0)
+        {
+            return pixelsAt96Dpi;
+        }
+        const double scaled = static_cast<double>(pixelsAt96Dpi) * static_cast<double>(dpi) / 96.0 + 0.5;
+        constexpr double maxInt = 2147483647.0;
+        return scaled >= maxInt ? 2147483647 : static_cast<int>(scaled);
+    }
+
     class Engine
     {
     public:
