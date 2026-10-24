@@ -1,6 +1,6 @@
 ---
 description: DSC configuration reference for PowerToys DwellClick module
-ms.date:     09/14/2026
+ms.date:     10/23/2026
 ms.topic:    reference
 title:       DwellClick Module
 ---
@@ -52,6 +52,17 @@ pointer from clicking the same spot repeatedly.
 
 **Type:** integer  
 **Default:** `10`
+
+### RepeatIntervalMs
+
+Sets how often a scroll or zoom repeats, in milliseconds, once its first
+step has landed. The first step always waits the full dwell time; moving
+the pointer to a new spot waits the full dwell time again.
+
+**Type:** integer  
+**Range:** `50` to `60000` (the Settings UI slider covers `100` to
+`2000`; a hand-edited value is clamped to the full range)  
+**Default:** `400`
 
 ### DefaultAction
 

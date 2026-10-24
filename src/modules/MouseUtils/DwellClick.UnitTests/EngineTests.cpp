@@ -40,11 +40,14 @@ namespace
 
     // Test baseline: a 100 ms dwell so the arithmetic in the timing tests stays obvious, with the
     // shipping 10 px tolerance and re-arm distance. The shipping dwell default is 1200 ms (see
-    // DwellClickCore.h); tests that pivot on a specific duration set it themselves.
+    // DwellClickCore.h); tests that pivot on a specific duration set it themselves. The repeat
+    // interval matches the dwell time, so a scroll repeats once per dwell period unless a test
+    // sets a different interval (see RepeatInterval).
     Settings DefaultSettings()
     {
         Settings s;
         s.dwellTimeMs = 100;
+        s.repeatIntervalMs = 100;
         return s;
     }
 
@@ -882,6 +885,103 @@ namespace DwellClickEngineTests
             // the new action from both.
             Assert::IsTrue(LastDwellAction == DwellAction::ZoomOut);
             Assert::AreEqual(10, static_cast<int>(LastDwellAction));
+        }
+    };
+
+    TEST_CLASS (RepeatInterval)
+    {
+    public:
+        TEST_METHOD (TheFirstNotchWaitsTheDwellTimeAndTheRestTheInterval)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            Settings s = DefaultSettings();
+            s.dwellTimeMs = 1000;
+            s.repeatIntervalMs = 250;
+
+            e.SetNextAction(DwellAction::ScrollDown);
+            Arm(e, s);
+
+            // The first notch is the deliberate one and waits the whole dwell...
+            Assert::IsFalse(e.Poll(999, s).fired);
+            Assert::IsTrue(e.Poll(1000, s).fired);
+
+            // ...and the repeats follow at the faster interval.
+            Assert::AreEqual(0.5, e.Poll(1125, s).progress);
+            Assert::IsFalse(e.Poll(1249, s).fired);
+            Assert::IsTrue(e.Poll(1250, s).fired);
+            Assert::IsTrue(e.Poll(1500, s).fired);
+            Assert::AreEqual(static_cast<size_t>(3), injector.Count());
+        }
+
+        TEST_METHOD (MovingAwayGoesBackToTheFullDwellTime)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            Settings s = DefaultSettings();
+            s.dwellTimeMs = 1000;
+            s.repeatIntervalMs = 250;
+
+            e.SetNextAction(DwellAction::ZoomIn);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(1000, s).fired);
+            Assert::IsTrue(e.Poll(1250, s).fired);
+
+            // A new rest point is a new decision, so it waits the full dwell again.
+            e.OnMove(PointL{ 400, 400 }, 1300, s);
+            Assert::IsFalse(e.Poll(1550, s).fired);
+            Assert::IsFalse(e.Poll(2299, s).fired);
+            Assert::IsTrue(e.Poll(2300, s).fired);
+        }
+
+        TEST_METHOD (ALockEndsTheFastRepeat)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            Settings s = DefaultSettings();
+            s.dwellTimeMs = 1000;
+            s.repeatIntervalMs = 250;
+
+            e.SetNextAction(DwellAction::ScrollUp);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(1000, s).fired);
+
+            // A pause (or any lock) and fresh movement start over from the full dwell.
+            e.SetPaused(true);
+            e.SetPaused(false);
+            e.OnMove(PointL{ 400, 400 }, 1100, s);
+            Assert::IsFalse(e.Poll(1350, s).fired);
+            Assert::IsTrue(e.Poll(2100, s).fired);
+        }
+
+        TEST_METHOD (ClickActionsIgnoreTheRepeatInterval)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            Settings s = DefaultSettings();
+            s.dwellTimeMs = 1000;
+            s.repeatIntervalMs = 1;
+
+            Arm(e, s);
+            Assert::IsFalse(e.Poll(999, s).fired);
+            Assert::IsTrue(e.Poll(1000, s).fired);
+        }
+
+        TEST_METHOD (ADegenerateIntervalClampsInsteadOfDividingByZero)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            Settings s = DefaultSettings();
+            s.repeatIntervalMs = 0;
+
+            e.SetNextAction(DwellAction::ScrollDown);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(100, s).fired);
+
+            // Clamped to 1 ms: the next poll a millisecond later fires, and progress stays finite.
+            const PollResult r = e.Poll(101, s);
+            Assert::IsTrue(r.fired);
+            Assert::IsTrue(r.progress == 0.0);
         }
     };
 }
