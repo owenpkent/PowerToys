@@ -344,7 +344,7 @@ namespace
             // could fight other software steering the pointer (a head or eye tracker, exactly
             // this module's audience).
             //
-            // A drag's release is never refused: the window the drag started in holds mouse
+            // A drag's release is never refused: the window where the drag started holds mouse
             // capture, so the button-up goes there rather than to whatever is under the
             // pointer, and refusing it would leave the button held down.
             if (kind != dwellclick::ClickKind::LeftUp && IsInputBlockedForWindow(WindowFromPoint(POINT{ pt.x, pt.y })))

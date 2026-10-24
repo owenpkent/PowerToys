@@ -200,7 +200,7 @@ engine, following the Mouse Button Lock module closely:
   injector checks the window under the pointer first (`IsInputBlockedForWindow`, the same token
   check as `IsProcessOfWindowElevated` in common/utils/elevation.h, which FancyZones and Always On
   Top use; it is repeated locally because that header pulls in WIL) and reports a failure
-  instead. A drag's release is exempt: the window the drag started in holds mouse capture, so
+  instead. A drag's release is exempt: the window where the drag started holds mouse capture, so
   the button-up goes there, and refusing it would leave the button held. The engine surfaces any
   rejected action as `PollResult.failed`, and the overlay flashes a circle with a slash at the
   pointer for 1.2 s whatever the toolbar shows. The toolbar's Back button makes the same check
