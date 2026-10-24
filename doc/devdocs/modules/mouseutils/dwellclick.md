@@ -17,7 +17,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
-- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 53
+- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 56
   tests in [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp)
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
@@ -95,6 +95,12 @@ as separate settings, and it is the part of the design most easily got wrong:
 
 Only a post-action lock uses the second distance. Every other lock uses the ordinary tolerance, so a
 settings change does not require an exaggerated movement to recover from.
+
+Both distances are set in pixels at 100% display scaling. The engine compares physical pixels, so
+the module scales them by the effective dpi of the monitor under the pointer
+(`ScaledTolerance`, updated as the pointer crosses monitors): the same hand movement then counts
+the same on a 100% laptop panel and a 200% external screen, rather than tremor tolerance silently
+halving on the high-DPI one.
 
 Both comparisons are strictly greater than the threshold, so a move of exactly the tolerance still
 counts as resting. Distances are compared as squared `double`: coordinates are 32-bit and a raw
@@ -230,8 +236,8 @@ The module lives on the Mouse Utilities settings page (`MouseUtilsPage.xaml`) wi
 dwell-time slider (200 ms to 5 s; the module clamps hand-edited values to 100 ms - 60 s), a
 scroll and zoom repeat slider (100 ms to 2 s; clamped to 50 ms - 60 s), a
 default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox,
-number boxes for the two tolerances (0 - 100 px), and the overlay options: action toolbar on/off,
-toolbar side (left, right, top, or bottom edge), toolbar style (docked bar or floating button
+number boxes for the two tolerances (0 - 100 px at 100% display scaling), and the overlay
+options: action toolbar on/off, toolbar side (left, right, top, or bottom edge), toolbar style (docked bar or floating button
 with a large menu), position along the edge (0 to 100%, labeled by `PercentLabelConverter`),
 countdown ring on/off, overlay size (small 40 px / medium 56 px / large 72 px buttons, with the
 ring scaled to match; medium is the default because dwell targets obey Fitts's law and this
@@ -366,7 +372,7 @@ off screen could not be brought back by someone who cannot click.
 | Setting | Default | Source |
 |---|---|---|
 | `dwellTimeMs` | 1200 | The GNOME Hover Click `dwell-time` default, the closest mouse-driven analogue. Eye-gaze research optima cluster nearer 600 ms, but assume a tracker rather than a hand on a mouse. macOS defaults to 3 s. |
-| `moveTolerancePixels` | 10 | The GNOME `dwell-threshold` default. |
+| `moveTolerancePixels` | 10 | The GNOME `dwell-threshold` default. Both tolerances are set at 100% display scaling and scaled per monitor. |
 | `postActionTolerancePixels` | 10 | No published default found; starts equal to the move tolerance and is intended to be widened independently. |
 | `repeatIntervalMs` | 400 | About 7 lines a second at the usual 3 lines per notch: fast enough to read a page by, slow enough to stop on the line you want. |
 | `defaultAction` | `LeftClick` | Universal across surveyed products. |
@@ -415,10 +421,12 @@ eight classes, using a recording fake injector and an explicit tick:
 - `RepeatInterval` - the first notch waits the dwell time and later notches the repeat interval,
   movement and locks go back to the full dwell, clicks ignore the interval, and a 0 ms interval
   clamps
+- `ToleranceScaling` - tolerances scale with display scaling, degenerate input stays defined,
+  and a scaled tolerance absorbs the same hand movement
 - `CountdownRing` - the ring waits for a fifth of a short dwell, at most 250 ms of a long one,
   and stays hidden for idle or degenerate input
 
-(53 tests in eleven classes in all.)
+(56 tests in twelve classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 38 tests over the toolbar model in seven classes: layout and hit-testing, the configurable

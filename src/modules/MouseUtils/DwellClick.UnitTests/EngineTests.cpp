@@ -986,6 +986,40 @@ namespace DwellClickEngineTests
         }
     };
 
+    TEST_CLASS (ToleranceScaling)
+    {
+    public:
+        TEST_METHOD (ToleranceGrowsWithDisplayScaling)
+        {
+            Assert::AreEqual(10, ScaledTolerance(10, 96));
+            Assert::AreEqual(13, ScaledTolerance(10, 120)); // 125%: 12.5 rounds up
+            Assert::AreEqual(15, ScaledTolerance(10, 144));
+            Assert::AreEqual(20, ScaledTolerance(10, 192));
+        }
+
+        TEST_METHOD (DegenerateInputsStayDefined)
+        {
+            Assert::AreEqual(0, ScaledTolerance(0, 192));
+            Assert::AreEqual(0, ScaledTolerance(-5, 192));
+            Assert::AreEqual(10, ScaledTolerance(10, 0)); // unknown dpi: unscaled
+            Assert::AreEqual(2147483647, ScaledTolerance(2147483647, 480)); // saturates
+        }
+
+        TEST_METHOD (AScaledToleranceAbsorbsTheSameHandMovement)
+        {
+            // The same physical tremor moves the pointer twice as many pixels on a 200% screen.
+            // With the tolerance scaled, the countdown survives it there exactly as at 100%.
+            FakeInjector injector;
+            Engine e(injector);
+            Settings s = DefaultSettings();
+            s.moveTolerancePixels = ScaledTolerance(10, 192);
+
+            Arm(e, s);
+            e.OnMove(PointL{ 118, 100 }, 50, s); // 18 px: 9 px of movement at 100%
+            Assert::IsTrue(e.Poll(100, s).fired);
+        }
+    };
+
     TEST_CLASS (CountdownRing)
     {
     public:

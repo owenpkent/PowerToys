@@ -94,7 +94,9 @@ namespace dwellclick
         int dwellTimeMs = 1200;
 
         // Jitter the countdown tolerates before it re-anchors and restarts. The default matches the
-        // GNOME dwell-threshold default of 10 px.
+        // GNOME dwell-threshold default of 10 px. Both tolerances are compared in the physical
+        // pixels the pointer reports; the module converts the Settings values, which are pixels
+        // at 100% display scaling, with ScaledTolerance.
         int moveTolerancePixels = 10;
 
         // How far the pointer must move after an action before a new countdown may start. Separate
@@ -156,6 +158,26 @@ namespace dwellclick
         const double capFraction = CountdownRingShowMaxMs / dwellMs;
         const double threshold = capFraction < CountdownRingShowFraction ? capFraction : CountdownRingShowFraction;
         return progress >= threshold;
+    }
+
+    // Converts a tolerance set in Settings (pixels at 100% display scaling, 96 dpi) into
+    // physical pixels for a monitor at the given dpi. The pointer reports physical pixels, so
+    // without this a 10 px tolerance on a 200% screen is only half the hand movement it is at
+    // 100%, and tremor tolerance silently gets stricter on high-DPI displays. Rounds to the
+    // nearest pixel; a dpi of 0 (unknown) leaves the value unscaled, and negative input is 0.
+    constexpr int ScaledTolerance(int pixelsAt96Dpi, unsigned dpi)
+    {
+        if (pixelsAt96Dpi <= 0)
+        {
+            return 0;
+        }
+        if (dpi == 0)
+        {
+            return pixelsAt96Dpi;
+        }
+        const double scaled = static_cast<double>(pixelsAt96Dpi) * static_cast<double>(dpi) / 96.0 + 0.5;
+        constexpr double maxInt = 2147483647.0;
+        return scaled >= maxInt ? 2147483647 : static_cast<int>(scaled);
     }
 
     class Engine
