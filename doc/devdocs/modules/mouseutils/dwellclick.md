@@ -57,8 +57,8 @@ began. Callers drive it with three entry points:
 | `Poll(tick, s)` | Advances the countdown. Returns progress for the countdown ring, and fires the action when progress reaches 1. |
 | `SetNextAction`, `SetPaused`, `OnPhysicalClick`, `OnPhysicalWheel`, `LockUntilMove`, `ReleaseDrag`, `ResetTransient` | Lifecycle and suppression. |
 
-`PollResult` carries `progress` (0 to 1), `fired`, the `action` that actually fired, and the point it
-fired at. Progress is 0 whenever the machine is locked or paused, and also on the poll that fires, so
+`PollResult` carries `progress` (0 to 1), `fired`, `failed` (a completed countdown whose action was
+rejected, reported once), the `action` that actually fired, and the point it fired at. Progress is 0 whenever the machine is locked or paused, and also on the poll that fires, so
 a countdown indicator clears itself without the caller tracking any state.
 
 ### Locking: the Midas touch guard

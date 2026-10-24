@@ -2881,7 +2881,7 @@ From there, simply click on one of the supported files in the File Explorer and 
     <comment>Dwell Click is the feature name: it clicks automatically when the pointer is held still.</comment>
   </data>
   <data name="MouseUtils_DwellClick.Description" xml:space="preserve">
-    <value>Click automatically by holding the pointer still, for anyone who can move a pointer but cannot reliably press a button. The click lands wherever the pointer rests. Clicks cannot be sent to windows running as administrator.</value>
+    <value>Click automatically by holding the pointer still, for anyone who can move a pointer but cannot reliably press a button. The click lands wherever the pointer rests. Clicks cannot reach windows running as administrator unless PowerToys also runs as administrator; a blocked click shows a crossed-out circle at the pointer.</value>
     <comment>Pointer as in the mouse pointer/cursor.</comment>
   </data>
   <data name="MouseUtils_Enable_DwellClick.Header" xml:space="preserve">
