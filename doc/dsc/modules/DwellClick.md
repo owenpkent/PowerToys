@@ -93,8 +93,10 @@ selects that action (or pauses dwelling) with no click needed.
 
 ### ToolbarSide
 
-Sets which screen edge the action toolbar docks to. With the floating
-button style, this is the edge the button sits on.
+Sets which edge of the primary monitor the action toolbar docks to. With
+the floating button style, this is the edge the button sits on. The
+toolbar stays clear of the taskbar and moves with it, and with any change
+of resolution or primary monitor.
 
 **Type:** integer  
 **Values:** `0` = left edge, `1` = right edge, `2` = top edge,
