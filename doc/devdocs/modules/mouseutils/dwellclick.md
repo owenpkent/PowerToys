@@ -390,7 +390,7 @@ eight classes, using a recording fake injector and an explicit tick:
 - `ReviewRegressions` - a rejected cleanup release keeps the drag until a retry succeeds, the
   next dwell finishes a pending release first, and an external button hold suppresses dwelling
   until it ends and the pointer moves
-- `RepeatInterval` - the first notch waits the dwell time and the rest the repeat interval,
+- `RepeatInterval` - the first notch waits the dwell time and later notches the repeat interval,
   movement and locks go back to the full dwell, clicks ignore the interval, and a 0 ms interval
   clamps
 
