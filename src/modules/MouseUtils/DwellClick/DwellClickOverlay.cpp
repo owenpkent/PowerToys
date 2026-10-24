@@ -1049,9 +1049,9 @@ namespace dwellclick
                 const Gdiplus::RectF sign{ disc.X + inset, disc.Y + inset, disc.Width - inset * 2, disc.Height - inset * 2 };
                 g.DrawEllipse(&blocked, sign);
                 const Gdiplus::REAL reach = sign.Width * 0.3536f; // the slash ends on the circle at 45 degrees
-                const Gdiplus::REAL scx = sign.X + sign.Width / 2;
-                const Gdiplus::REAL scy = sign.Y + sign.Height / 2;
-                g.DrawLine(&blocked, scx - reach, scy - reach, scx + reach, scy + reach);
+                const Gdiplus::REAL signX = sign.X + sign.Width / 2;
+                const Gdiplus::REAL signY = sign.Y + sign.Height / 2;
+                g.DrawLine(&blocked, signX - reach, signY - reach, signX + reach, signY + reach);
             }
             else if (flash)
             {
