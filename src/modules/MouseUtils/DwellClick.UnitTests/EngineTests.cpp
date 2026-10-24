@@ -1017,6 +1017,65 @@ namespace DwellClickEngineTests
         }
     };
 
+    TEST_CLASS (IdlePolling)
+    {
+    public:
+        TEST_METHOD (OnlyAnArmedMachineIsCountingDown)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            Assert::IsFalse(e.IsCountingDown()); // starts locked
+            Arm(e, s);
+            Assert::IsTrue(e.IsCountingDown());
+
+            Assert::IsTrue(e.Poll(100, s).fired);
+            Assert::IsFalse(e.IsCountingDown()); // locked after the click
+
+            e.OnMove(PointL{ 300, 300 }, 200, s);
+            e.SetPaused(true);
+            Assert::IsFalse(e.IsCountingDown());
+            e.SetPaused(false);
+            e.OnMove(PointL{ 500, 500 }, 300, s);
+            e.SetExternalButtonHeld(true);
+            Assert::IsFalse(e.IsCountingDown());
+        }
+
+        TEST_METHOD (ARepeatingScrollKeepsCountingDown)
+        {
+            // Scroll does not lock after a notch, so the caller must keep polling for the next.
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            e.SetNextAction(DwellAction::ScrollDown);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(100, s).fired);
+            Assert::IsTrue(e.IsCountingDown());
+        }
+
+        TEST_METHOD (WhileNotCountingDownPollChangesNothing)
+        {
+            // The contract the idle back-off relies on: with no countdown running, time alone
+            // never fires or shows progress, however long the caller waits between polls.
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(100, s).fired);
+            Assert::IsFalse(e.IsCountingDown());
+            for (const uint64_t tick : { 1000ull, 60000ull, 3600000ull })
+            {
+                const PollResult r = e.Poll(tick, s);
+                Assert::IsFalse(r.fired);
+                Assert::AreEqual(0.0, r.progress);
+            }
+            Assert::AreEqual(static_cast<size_t>(1), injector.Count());
+        }
+    };
+
     TEST_CLASS (ToleranceScaling)
     {
     public:

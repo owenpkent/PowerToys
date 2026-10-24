@@ -116,6 +116,12 @@ namespace
     // cadence the future countdown indicator will want for smooth progress.
     constexpr DWORD POLL_INTERVAL_MS = 15;
 
+    // The poll cadence while nothing can change with time alone: no countdown, nothing on show,
+    // and no toolbar button filling. A pointer move wakes the wait at once (the hook's call
+    // arrives as a sent message), and set_config and the hotkeys set m_wakeEvent, so this only
+    // bounds the backstops that do run on a timer (the toolbar's work-area check).
+    constexpr DWORD IDLE_POLL_INTERVAL_MS = 1000;
+
     // Default values mirror the engine's Settings defaults (see DwellClickCore.h for their
     // provenance); the eventual C# DwellClickProperties must match both.
     constexpr int DEFAULT_DWELL_TIME_MS = 1200;
@@ -465,6 +471,11 @@ private:
     // Hook thread + lifecycle.
     HHOOK m_mouseHook = nullptr;
     HANDLE m_terminateEvent = nullptr;
+
+    // Wakes the hook thread from an idle wait when the runner thread raises a flag (set_config,
+    // on_hotkey). Created and closed on the runner thread around the hook thread's lifetime,
+    // and every SetEvent also runs on the runner thread, so it cannot race the close.
+    HANDLE m_wakeEvent = nullptr;
     std::thread m_hookThread;
     std::atomic<bool> m_listening{ false };
 
@@ -475,6 +486,7 @@ private:
     void UpdatePointerDpi(POINT pt);
 
     void HookThreadMain();
+    void WakeHookThread();
     void HandleMouseMessage(WPARAM wParam, const MSLLHOOKSTRUCT* data);
     void HandleToolbarCommand(dwellclick::ToolbarCommand command);
 
@@ -546,6 +558,7 @@ public:
             m_relockRequested.store(true);
             parse_settings(values);
             m_relockRequested.store(true);
+            WakeHookThread();
         }
         catch (...)
         {
@@ -596,6 +609,12 @@ public:
             Logger::error(L"Failed to create DwellClick terminate event, error: {}. Hook not started.", GetLastError());
             return;
         }
+        m_wakeEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+        if (m_wakeEvent == nullptr)
+        {
+            // Without it the loop cannot back off when idle; it still runs, on the fast cadence.
+            Logger::warn(L"Failed to create DwellClick wake event, error: {}. Polling without idle back-off.", GetLastError());
+        }
         m_listening = true;
         m_hookThread = std::thread([this]() { HookThreadMain(); });
     }
@@ -623,6 +642,11 @@ public:
         {
             CloseHandle(m_terminateEvent);
             m_terminateEvent = nullptr;
+        }
+        if (m_wakeEvent)
+        {
+            CloseHandle(m_wakeEvent);
+            m_wakeEvent = nullptr;
         }
 
         // The hook thread is gone, so nothing starts new sounds; stop one still playing before
@@ -665,9 +689,11 @@ public:
         {
         case HOTKEY_ID_PAUSE:
             m_pauseToggleRequested.store(true);
+            WakeHookThread();
             return true;
         case HOTKEY_ID_CYCLE_ACTION:
             m_cycleActionRequested.store(true);
+            WakeHookThread();
             return true;
         default:
             return false;
@@ -909,12 +935,15 @@ void DwellClick::HookThreadMain()
         reinterpret_cast<HINSTANCE>(&__ImageBase),
         [this](dwellclick::ToolbarCommand command) { HandleToolbarCommand(command); });
 
-    HANDLE handles[1] = { m_terminateEvent };
+    HANDLE handles[2] = { m_terminateEvent, m_wakeEvent };
+    const DWORD handleCount = m_wakeEvent ? 2 : 1;
+    DWORD timeout = POLL_INTERVAL_MS;
     while (m_listening)
     {
         // The timeout doubles as the poll cadence: with the pointer at rest no messages
-        // arrive, and the countdown advances on WAIT_TIMEOUT every POLL_INTERVAL_MS.
-        DWORD res = MsgWaitForMultipleObjects(1, handles, FALSE, POLL_INTERVAL_MS, QS_ALLINPUT);
+        // arrive, and the countdown advances on WAIT_TIMEOUT every POLL_INTERVAL_MS. While
+        // nothing can change with time alone the loop waits longer (see the end of the loop).
+        DWORD res = MsgWaitForMultipleObjects(handleCount, handles, FALSE, timeout, QS_ALLINPUT);
         if (!m_listening || res == WAIT_OBJECT_0)
         {
             break;
@@ -1076,6 +1105,20 @@ void DwellClick::HookThreadMain()
         {
             PlaySoundW(reinterpret_cast<LPCWSTR>(m_clickSound.data()), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
         }
+
+        // Poll fast only while time alone can change something: a countdown (including a
+        // repeating scroll), the toolbar under the pointer, or anything the overlay is
+        // animating. Otherwise only a pointer move, a settings change, or a hotkey can, and each
+        // of those wakes the wait itself. A held button still needs its stale-hold check.
+        const bool busy = m_engine.IsCountingDown() || overToolbar || result.failed || (overlayCreated && m_overlay.NeedsTicks());
+        if (busy || !m_wakeEvent)
+        {
+            timeout = POLL_INTERVAL_MS;
+        }
+        else
+        {
+            timeout = m_externalButtonsHeld != 0 ? static_cast<DWORD>(STALE_HOLD_CHECK_MS) : IDLE_POLL_INTERVAL_MS;
+        }
     }
 
     if (overlayCreated)
@@ -1092,6 +1135,14 @@ void DwellClick::HookThreadMain()
     if (m_engine.ReleaseDrag())
     {
         Logger::info(L"Released a drag that was in progress when DwellClick stopped.");
+    }
+}
+
+void DwellClick::WakeHookThread()
+{
+    if (m_wakeEvent)
+    {
+        SetEvent(m_wakeEvent);
     }
 }
 

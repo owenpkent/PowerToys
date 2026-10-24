@@ -17,7 +17,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
-- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 58
+- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 61
   tests in [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp)
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
@@ -180,7 +180,17 @@ engine, following the Mouse Button Lock module closely:
   `OnMove` for every pointer move, `OnPhysicalClick` for every physical button-down, and
   `OnPhysicalWheel` for every wheel turn on either axis that the module did not inject; the loop
   wakes every 15 ms (`MsgWaitForMultipleObjects` timeout) to pump messages and call `Poll`, which
-  is what advances a countdown while the pointer is at rest and no messages arrive.
+  is what advances a countdown while the pointer is at rest and no messages arrive. The loop
+  only polls that fast while time alone can change something (`Engine::IsCountingDown`, the
+  pointer over the toolbar, or `Overlay::NeedsTicks`); otherwise it waits up to 1 s, because a
+  pointer move wakes the wait at once (the hook's call arrives as a sent message) and
+  `set_config` and the hotkeys set `m_wakeEvent`. An idle PowerToys therefore no longer wakes
+  66 times a second.
+- **The hook thread is kept light.** It also services the low-level hook, so a slow frame lags
+  the pointer system-wide, and Windows removes a low-level hook that keeps timing out. The ring
+  reuses one bitmap rather than allocating one per frame, skips a frame identical to the last
+  (`IndicatorFrame`: position, whole degrees of fill, badge, flash), and re-asserts topmost only
+  when it appears.
 - **A button held by anything else suppresses dwelling for the whole hold.** The hook tracks
   untagged button presses and releases per button and calls `SetExternalButtonHeld`; while any is held
   the engine stays locked whatever the pointer does, so a dwell can never cut short the user's
@@ -433,12 +443,14 @@ eight classes, using a recording fake injector and an explicit tick:
 - `RepeatInterval` - the first notch waits the dwell time and later notches the repeat interval,
   movement and locks go back to the full dwell, clicks ignore the interval, and a 0 ms interval
   clamps
+- `IdlePolling` - only an armed machine (or a repeating scroll) is counting down, and while
+  none is, polls change nothing however far apart they are
 - `ToleranceScaling` - tolerances scale with display scaling, degenerate input stays defined,
   and a scaled tolerance absorbs the same hand movement
 - `CountdownRing` - the ring waits for a fifth of a short dwell, at most 250 ms of a long one,
   and stays hidden for idle or degenerate input
 
-(58 tests in twelve classes in all.)
+(61 tests in thirteen classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 38 tests over the toolbar model in seven classes: layout and hit-testing, the configurable

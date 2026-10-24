@@ -303,6 +303,14 @@ namespace dwellclick
             return m_nextAction;
         }
 
+        // Whether a countdown is running, so Poll can still change something. False while locked,
+        // paused, or suppressed by a held button: only an OnMove (or a lifecycle call) can arm
+        // the machine again, so the caller may stop polling on a timer until one arrives.
+        bool IsCountingDown() const
+        {
+            return !m_paused && !m_locked && !m_externalHold;
+        }
+
         // Suspend dwelling without losing settings. Every surveyed dwell tool ships this escape
         // hatch (the Dwell Clicker 2 "Rest" button, the macOS Pause dwell action, the Android
         // Pause control), because a user who cannot click also cannot easily stop a machine that
