@@ -130,11 +130,14 @@ namespace dwellclick
     };
 
     // The result of one Poll. progress drives the countdown ring; it is 0 whenever the machine is
-    // locked or paused, so the ring clears itself without the caller tracking state.
+    // locked or paused, so the ring clears itself without the caller tracking state. failed is
+    // set when a countdown completed but its action was rejected (by an elevated window, say),
+    // so the caller can tell the user instead of the click silently not happening.
     struct PollResult
     {
         double progress = 0.0;
         bool fired = false;
+        bool failed = false;
         DwellAction action = DwellAction::LeftClick;
         PointL point{};
     };
@@ -263,6 +266,7 @@ namespace dwellclick
             // FireAction records which action ran before any revert, so the caller is told what
             // actually fired rather than what the next dwell will do.
             result.fired = FireAction(m_nextAction, s);
+            result.failed = !result.fired;
             result.action = m_firedAction;
 
             if (result.fired && IsRepeatingAction(m_firedAction))

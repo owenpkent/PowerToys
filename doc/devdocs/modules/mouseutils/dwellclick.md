@@ -17,7 +17,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
-- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 56
+- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 58
   tests in [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp)
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
@@ -194,6 +194,17 @@ engine, following the Mouse Button Lock module closely:
   Ctrl for the instant of its notch; if the process is killed in that instant Windows can leave
   Ctrl down until it is next pressed, which was seen when the UI-test harness killed PowerToys
   mid-zoom.
+- **A click into an elevated window is refused, and the user is told.** User Interface Privilege
+  Isolation drops input sent from PowerToys into a higher-integrity (elevated) process unless
+  PowerToys itself runs elevated, and `SendInput` does not reliably report that drop. So the
+  injector checks the window under the pointer first (`IsInputBlockedForWindow`, the same token
+  check as `IsProcessOfWindowElevated` in common/utils/elevation.h, which FancyZones and Always On
+  Top use; it is repeated locally because that header pulls in WIL) and reports a failure
+  instead. A drag's release is exempt: the window the drag started in holds mouse capture, so
+  the button-up goes there, and refusing it would leave the button held. The engine surfaces any
+  rejected action as `PollResult.failed`, and the overlay flashes a circle with a slash at the
+  pointer for 1.2 s whatever the toolbar shows. The toolbar's Back button makes the same check
+  against the foreground window.
 - **Injection is a tagged `SendInput`.** Every synthetic event carries a `dwExtraInfo` tag so the
   hook can ignore the module's own clicks; without that, every fired click would immediately
   re-lock the machine against its own echo. Only the module's own tag is filtered. `LLMHF_INJECTED`
@@ -410,7 +421,8 @@ eight classes, using a recording fake injector and an explicit tick:
   state
 - `PauseAndSuppression` - pause, resume, pause mid-drag, physical-click and wheel suppression, and the
   live-settings-change lock
-- `InjectionFailure` - failures are reported, not retried per poll, and do not consume the action
+- `InjectionFailure` - failures are reported (once, as `PollResult.failed`), not retried per
+  poll, and do not consume the action
 - `ScrollActions` - auto-repeat while resting, no revert, movement re-anchoring, and a failed
   scroll locking instead of retrying
 - `HorizontalScrollAndZoomActions` - the four newer actions map to their own click kinds,
@@ -426,7 +438,7 @@ eight classes, using a recording fake injector and an explicit tick:
 - `CountdownRing` - the ring waits for a fifth of a short dwell, at most 250 ms of a long one,
   and stays hidden for idle or degenerate input
 
-(56 tests in twelve classes in all.)
+(58 tests in twelve classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 38 tests over the toolbar model in seven classes: layout and hit-testing, the configurable
@@ -568,6 +580,9 @@ Still to build:
   while), which would mean suppressing real clicks for the first time; and scroll buttons parked
   in the screen corners. Ease Mouse's pointer cross is left to the existing Mouse Pointer
   Crosshairs module.
+- Dwell Click cannot reach the secure desktop (UAC prompts, the lock screen, Ctrl+Alt+Del): the
+  hook does not see the pointer there, and injecting into it needs a `uiAccess` signed binary,
+  which PowerToys modules are not. Elevated windows work when PowerToys runs as administrator.
 - Killing the PowerToys process while a zoom notch is holding Ctrl can leave Ctrl down (see
   [The module layer](#the-module-layer)); a graceful disable is not affected.
 

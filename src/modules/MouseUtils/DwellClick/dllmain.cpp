@@ -286,23 +286,77 @@ namespace
         return VerifyVersionInfoW(&version, VER_MAJORVERSION | VER_MINORVERSION | VER_BUILDNUMBER, mask) != FALSE;
     }
 
+    // Whether a process's token is elevated. A process that cannot be opened or queried counts
+    // as not elevated, the same default as common/utils/elevation.h, which this module does not
+    // include because it pulls in WIL. GetCurrentProcess() works here too.
+    bool IsProcessElevated(HANDLE process)
+    {
+        HANDLE token = nullptr;
+        if (!process || !OpenProcessToken(process, TOKEN_QUERY, &token))
+        {
+            return false;
+        }
+        TOKEN_ELEVATION elevation{};
+        DWORD size = 0;
+        const bool elevated = GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size) && elevation.TokenIsElevated != 0;
+        CloseHandle(token);
+        return elevated;
+    }
+
+    // Whether Windows will drop input sent to this window from this process: User Interface
+    // Privilege Isolation blocks injection into an elevated process unless PowerToys itself runs
+    // elevated. SendInput does not reliably report that drop, so check first, the way
+    // FancyZones and Always On Top do (IsProcessOfWindowElevated).
+    bool IsInputBlockedForWindow(HWND window)
+    {
+        static const bool selfElevated = IsProcessElevated(GetCurrentProcess());
+        if (!window || selfElevated)
+        {
+            return false;
+        }
+        const HWND root = GetAncestor(window, GA_ROOT);
+        DWORD pid = 0;
+        GetWindowThreadProcessId(root ? root : window, &pid);
+        if (pid == 0)
+        {
+            return false;
+        }
+        const HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+        if (!process)
+        {
+            return false;
+        }
+        const bool elevated = IsProcessElevated(process);
+        CloseHandle(process);
+        return elevated;
+    }
+
     // Production injector: a tagged SendInput. Lives behind the engine's IClickInjector so the
     // state machine can be unit tested without Win32.
     class WinInjector : public dwellclick::IClickInjector
     {
     public:
-        bool Inject(dwellclick::ClickKind kind, dwellclick::PointL /*pt*/) override
+        bool Inject(dwellclick::ClickKind kind, dwellclick::PointL pt) override
         {
-            // The point is deliberately unused: the engine only fires while the pointer is
-            // resting at that point, so injecting button events at the live cursor position
-            // clicks the same spot. Injecting a MOUSEEVENTF_MOVE instead could fight other
-            // software steering the pointer (a head or eye tracker, exactly this module's
-            // audience).
+            // The point only picks the window that will receive the click. The input itself is
+            // injected at the live cursor position, which is the same spot because the engine
+            // only fires while the pointer rests there; injecting a MOUSEEVENTF_MOVE instead
+            // could fight other software steering the pointer (a head or eye tracker, exactly
+            // this module's audience).
+            //
+            // A drag's release is never refused: the window the drag started in holds mouse
+            // capture, so the button-up goes there rather than to whatever is under the
+            // pointer, and refusing it would leave the button held down.
+            if (kind != dwellclick::ClickKind::LeftUp && IsInputBlockedForWindow(WindowFromPoint(POINT{ pt.x, pt.y })))
+            {
+                Logger::warn(L"Dwell click not sent: the window under the pointer is elevated above PowerToys, so Windows would drop it.");
+                return false;
+            }
             if (SendSteps(dwellclick::StepsFor(kind)))
             {
                 return true;
             }
-            Logger::warn(L"Failed to inject a dwell click; the target window may be elevated above this process.");
+            Logger::warn(L"Failed to inject a dwell click, error: {}", GetLastError());
             return false;
         }
     };
@@ -1011,6 +1065,13 @@ void DwellClick::HookThreadMain()
             m_overlay.UpdateIndicator(cursor, result.progress, snapshot.dwellTimeMs, !overToolbar);
         }
 
+        if (result.failed && overlayCreated)
+        {
+            // The click did not happen (most often an elevated window under the pointer); say so
+            // at the pointer rather than leaving the user to wonder.
+            m_overlay.FlashBlocked(tick);
+        }
+
         if (result.fired && m_playSound.load() && !m_clickSound.empty())
         {
             PlaySoundW(reinterpret_cast<LPCWSTR>(m_clickSound.data()), nullptr, SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
@@ -1063,6 +1124,14 @@ void DwellClick::HandleToolbarCommand(dwellclick::ToolbarCommand command)
         m_engine.SetPaused(!m_engine.IsPaused());
         break;
     case ToolbarCommand::Back:
+        // Back goes to the app in the foreground; an elevated one would silently drop it.
+        if (IsInputBlockedForWindow(GetForegroundWindow()))
+        {
+            Logger::warn(L"DwellClick Back not sent: the foreground window is elevated above PowerToys.");
+            m_overlay.FlashBlocked(GetTickCount64());
+            break;
+        }
+        [[fallthrough]];
     case ToolbarCommand::StartMenu:
     case ToolbarCommand::ShowDesktop:
     case ToolbarCommand::TaskView:
