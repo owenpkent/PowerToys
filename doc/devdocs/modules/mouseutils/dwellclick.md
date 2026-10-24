@@ -553,7 +553,7 @@ The four settings tests:
 | `DwellTimeAndTolerancesPersistAtBoundaries` | The dwell time and both tolerances persist at their minimum and maximum, and the dwell time reloads after restart. |
 | `ADwellCompletesADragAndASecondDwellReleasesIt` | A dwell presses and holds the left button, a second dwell releases it, and the engine re-arms for another drag. |
 
-All 24 passed on a host desktop against a local x64 Debug build on 2026-10-18 (the Show desktop
+All 25 passed on a host desktop against a local x64 Debug build on 2026-10-23 (the Show desktop
 test minimizes the user's windows and restores them, but some apps, Windows Settings among them,
 may need restoring by hand afterwards). They have not yet
 run on the Windows 10/11 VMs from the
