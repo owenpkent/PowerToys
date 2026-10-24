@@ -18,7 +18,7 @@ namespace dwellclick
     // The cross-thread "settings changed" flag, and the one ordering that makes it safe.
     //
     // A live change must lock the engine before any Poll runs with a new value: shortening the
-    // dwell time against an already-running countdown would otherwise fire the moment the new
+    // dwell time against an already-running countdown would otherwise fire as soon as the new
     // value lands. So the flag is raised BEFORE the new values are published, and the hook thread
     // reads its settings snapshot BEFORE it consumes the flag. If a snapshot holds any new value,
     // that value was written after the first raise, so the consume that follows the snapshot
@@ -53,7 +53,7 @@ namespace dwellclick
     // next dwell, the way choosing it on the toolbar would, releasing a drag in progress first so
     // the switch never orphans the held button. appliedDefaultAction is the default last handed
     // to the engine: only a real change of the default replaces the next action, so an unrelated
-    // change (the dwell time, say) never discards an action the user picked on the toolbar.
+    // change (the dwell time, say) never discards an action that the user picked on the toolbar.
     inline void ApplySettingsChange(Engine& engine, const Settings& snapshot, DwellAction& appliedDefaultAction)
     {
         engine.LockUntilMove();
