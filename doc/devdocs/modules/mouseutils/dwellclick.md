@@ -236,8 +236,8 @@ The module lives on the Mouse Utilities settings page (`MouseUtilsPage.xaml`) wi
 dwell-time slider (200 ms to 5 s; the module clamps hand-edited values to 100 ms - 60 s), a
 scroll and zoom repeat slider (100 ms to 2 s; clamped to 50 ms - 60 s), a
 default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox,
-number boxes for the two tolerances (0 - 100 px), and the overlay options: action toolbar on/off,
-toolbar side (left, right, top, or bottom edge), toolbar style (docked bar or floating button
+number boxes for the two tolerances (0 - 100 px at 100% display scaling), and the overlay
+options: action toolbar on/off, toolbar side (left, right, top, or bottom edge), toolbar style (docked bar or floating button
 with a large menu), position along the edge (0 to 100%, labeled by `PercentLabelConverter`),
 countdown ring on/off, overlay size (small 40 px / medium 56 px / large 72 px buttons, with the
 ring scaled to match; medium is the default because dwell targets obey Fitts's law and this
@@ -372,7 +372,7 @@ off screen could not be brought back by someone who cannot click.
 | Setting | Default | Source |
 |---|---|---|
 | `dwellTimeMs` | 1200 | The GNOME Hover Click `dwell-time` default, the closest mouse-driven analogue. Eye-gaze research optima cluster nearer 600 ms, but assume a tracker rather than a hand on a mouse. macOS defaults to 3 s. |
-| `moveTolerancePixels` | 10 | The GNOME `dwell-threshold` default. |
+| `moveTolerancePixels` | 10 | The GNOME `dwell-threshold` default. Both tolerances are set at 100% display scaling and scaled per monitor. |
 | `postActionTolerancePixels` | 10 | No published default found; starts equal to the move tolerance and is intended to be widened independently. |
 | `repeatIntervalMs` | 400 | About 7 lines a second at the usual 3 lines per notch: fast enough to read a page by, slow enough to stop on the line you want. |
 | `defaultAction` | `LeftClick` | Universal across surveyed products. |

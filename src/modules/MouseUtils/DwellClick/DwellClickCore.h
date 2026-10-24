@@ -94,7 +94,9 @@ namespace dwellclick
         int dwellTimeMs = 1200;
 
         // Jitter the countdown tolerates before it re-anchors and restarts. The default matches the
-        // GNOME dwell-threshold default of 10 px.
+        // GNOME dwell-threshold default of 10 px. Both tolerances are compared in the physical
+        // pixels the pointer reports; the module converts the Settings values, which are pixels
+        // at 100% display scaling, with ScaledTolerance.
         int moveTolerancePixels = 10;
 
         // How far the pointer must move after an action before a new countdown may start. Separate
