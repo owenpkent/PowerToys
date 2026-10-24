@@ -52,10 +52,10 @@ namespace
     // Gap kept between the toolbar and the screen edge, in 96-dpi units.
     constexpr int EDGE_MARGIN = 8;
     constexpr int INDICATOR_SIZES[3] = { 40, 48, 62 };
+    constexpr double INDICATOR_RADII[3] = { 11.5, 15.0, 19.5 };
 
     // How long a shortcut's feedback stays at the pointer.
     constexpr uint64_t FLASH_DURATION_MS = 1200;
-    constexpr double INDICATOR_RADII[3] = { 11.5, 15.0, 19.5 };
 
     constexpr int ClampSizeIndex(int index)
     {
