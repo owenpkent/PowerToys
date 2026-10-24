@@ -41,6 +41,7 @@ namespace
     const Gdiplus::Color ACCENT_CHARGE{ 170, 0, 120, 212 };
     const Gdiplus::Color RING_HALO{ 90, 0, 0, 0 };
     const Gdiplus::Color RING_TRACK{ 140, 255, 255, 255 };
+    const Gdiplus::Color BLOCKED{ 255, 255, 99, 71 };
 
     // The overlay-size setting (small / medium / large) maps to these 96-dpi metrics for the
     // toolbar buttons and the countdown ring. The indicator bitmap is square; the ring floats
@@ -962,6 +963,13 @@ namespace dwellclick
         }
         m_flashCommand = command;
         m_flashPausedGlyph = pausedGlyph;
+        m_flashBlocked = false;
+        m_flashUntil = tick + FLASH_DURATION_MS;
+    }
+
+    void Overlay::FlashBlocked(uint64_t tick)
+    {
+        m_flashBlocked = true;
         m_flashUntil = tick + FLASH_DURATION_MS;
     }
 
@@ -1033,7 +1041,19 @@ namespace dwellclick
             g.FillEllipse(&backing, disc);
             Gdiplus::Pen border(BAR_BORDER, 1.0f);
             g.DrawEllipse(&border, disc);
-            if (flash)
+            if (flash && m_flashBlocked)
+            {
+                // A circle with a slash: the action was not allowed here.
+                Gdiplus::Pen blocked(BLOCKED, diameter * 0.09f);
+                const Gdiplus::REAL inset = diameter * 0.24f;
+                const Gdiplus::RectF sign{ disc.X + inset, disc.Y + inset, disc.Width - inset * 2, disc.Height - inset * 2 };
+                g.DrawEllipse(&blocked, sign);
+                const Gdiplus::REAL reach = sign.Width * 0.3536f; // the slash ends on the circle at 45 degrees
+                const Gdiplus::REAL signX = sign.X + sign.Width / 2;
+                const Gdiplus::REAL signY = sign.Y + sign.Height / 2;
+                g.DrawLine(&blocked, signX - reach, signY - reach, signX + reach, signY + reach);
+            }
+            else if (flash)
             {
                 DrawCommandGlyph(g, m_flashCommand, disc, GLYPH, m_flashPausedGlyph, BAR_BACKGROUND);
             }

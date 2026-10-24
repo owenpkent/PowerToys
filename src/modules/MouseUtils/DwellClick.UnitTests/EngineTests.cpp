@@ -623,6 +623,37 @@ namespace DwellClickEngineTests
             Assert::AreEqual(static_cast<size_t>(1), injector.Count());
         }
 
+        TEST_METHOD (AFailedInjectionIsReportedAsFailedOnlyOnce)
+        {
+            FakeInjector injector;
+            injector.succeed = false;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            Arm(e, s);
+            Assert::IsFalse(e.Poll(50, s).failed); // still counting down
+
+            // The completed countdown reports the rejection, so the module can show it...
+            const PollResult r = e.Poll(100, s);
+            Assert::IsFalse(r.fired);
+            Assert::IsTrue(r.failed);
+
+            // ...and the locked polls after it do not repeat the report.
+            Assert::IsFalse(e.Poll(200, s).failed);
+        }
+
+        TEST_METHOD (ASuccessfulActionIsNotReportedAsFailed)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            Arm(e, s);
+            const PollResult r = e.Poll(100, s);
+            Assert::IsTrue(r.fired);
+            Assert::IsFalse(r.failed);
+        }
+
         TEST_METHOD (AFailedInjectionStillConsumesTheAction)
         {
             FakeInjector injector;

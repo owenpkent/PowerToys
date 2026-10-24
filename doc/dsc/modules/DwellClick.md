@@ -21,6 +21,12 @@ time and the chosen action fires there: a left, right, double, or middle
 click, or a two-dwell drag (the first dwell presses the left button, the
 second releases it).
 
+Windows does not let PowerToys send input to a window running as
+administrator unless PowerToys also runs as administrator. Dwell Click
+skips such a click and shows a crossed-out circle at the pointer instead.
+It cannot reach the secure desktop (UAC prompts and the lock screen) at
+all.
+
 ## Properties
 
 The DwellClick module supports the following configurable properties:

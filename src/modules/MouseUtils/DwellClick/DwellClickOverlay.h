@@ -191,6 +191,10 @@ namespace dwellclick
         void FlashPauseState(bool paused, uint64_t tick);
         void FlashAction(DwellAction action, uint64_t tick);
 
+        // Briefly show that an action was blocked (a circle with a slash) at the pointer.
+        // Always shown: nothing else tells the user that the click did not happen.
+        void FlashBlocked(uint64_t tick);
+
         // Whether the point is over the visible toolbar; the caller keeps the engine locked
         // there so dwells over the toolbar select buttons instead of clicking through them.
         bool IsPointOverToolbar(POINT screenPt) const;
@@ -240,6 +244,7 @@ namespace dwellclick
         // The shortcut feedback on show (see FlashPauseState): the glyph, and when it ends.
         ToolbarCommand m_flashCommand = ToolbarCommand::TogglePause;
         bool m_flashPausedGlyph = false;
+        bool m_flashBlocked = false;
         uint64_t m_flashUntil = 0;
     };
 }
