@@ -213,6 +213,7 @@ namespace dwellclick
         void StartFlash(ToolbarCommand command, bool pausedGlyph, uint64_t tick);
         void DispatchCommand(ToolbarCommand command);
         double Scale() const;
+        static double ScaleAt(POINT screenPt);
 
         HINSTANCE m_instance = nullptr;
         HWND m_toolbar = nullptr;

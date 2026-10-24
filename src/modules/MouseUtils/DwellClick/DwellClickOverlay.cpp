@@ -7,6 +7,7 @@
 
 #include <windowsx.h>
 #include <dwmapi.h>
+#include <ShellScalingApi.h>
 
 #include <common/logger/logger.h>
 
@@ -22,6 +23,7 @@
 #include <cmath>
 
 #pragma comment(lib, "dwmapi.lib") // DwmGetColorizationColor
+#pragma comment(lib, "Shcore.lib") // GetDpiForMonitor
 
 namespace
 {
@@ -469,6 +471,21 @@ namespace dwellclick
     {
         const UINT dpi = m_toolbar ? GetDpiForWindow(m_toolbar) : 96;
         return dpi > 0 ? dpi / 96.0 : 1.0;
+    }
+
+    double Overlay::ScaleAt(POINT screenPt)
+    {
+        // The ring follows the pointer onto any monitor, so it scales for the monitor under the
+        // pointer, not the primary one the toolbar is docked to: with monitors at mixed DPI the
+        // toolbar's scale would draw it too small on a 200% screen beside a 100% primary.
+        UINT dpiX = 96;
+        UINT dpiY = 96;
+        const HMONITOR monitor = MonitorFromPoint(screenPt, MONITOR_DEFAULTTONEAREST);
+        if (monitor && SUCCEEDED(GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY)) && dpiX > 0)
+        {
+            return dpiX / 96.0;
+        }
+        return 1.0;
     }
 
     void Overlay::ApplySettings(const OverlaySettings& settings)
@@ -963,7 +980,7 @@ namespace dwellclick
 
     void Overlay::PaintIndicator(POINT pt, double progress, bool ring)
     {
-        const double scale = Scale();
+        const double scale = ScaleAt(pt);
         const int sizeIndex = ClampSizeIndex(m_settings.overlaySize);
         const int ringSize = static_cast<int>(INDICATOR_SIZES[sizeIndex] * scale);
 
