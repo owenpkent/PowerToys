@@ -612,6 +612,11 @@ Still to build:
 - Dwell Click cannot reach the secure desktop (UAC prompts, the lock screen, Ctrl+Alt+Del): the
   hook does not see the pointer there, and injecting into it needs a `uiAccess` signed binary,
   which PowerToys modules are not. Elevated windows work when PowerToys runs as administrator.
+- The engine arms only on moves the low-level hook reports. A pointer steered purely with
+  `SetCursorPos` (which some head and eye trackers use) never starts a countdown; the toolbar
+  still follows it, because it reads the cursor position on every poll. Feeding polled
+  positions to the engine would fix it, but the UI suite also moves the pointer with
+  `SetCursorPos` and relies on such jumps not arming the engine, so it needs care.
 - Killing the PowerToys process while a zoom notch is holding Ctrl can leave Ctrl down (see
   [The module layer](#the-module-layer)); a graceful disable is not affected.
 
