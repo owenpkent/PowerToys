@@ -455,8 +455,9 @@ an application actually saw:
 - Drag presses at one spot and releases at another with button-down moves in between, and moves
   a window by its title bar as far as the pointer went, both a classic caption and the app-drawn
   WinUI 3 title bar of PowerToys Settings.
-- The four scrolls and both zooms repeat one notch per dwell period with the right delta and Ctrl
-  state, and zoom never leaves Ctrl down.
+- The four scrolls and both zooms land a first notch after the dwell time and then repeat at the
+  faster repeat interval (250 ms against a 500 ms dwell in the suite), with the right delta and
+  Ctrl state, and zoom never leaves Ctrl down.
 - The keystroke buttons are checked by the exact keys the module injects, which the recorder's
   low-level keyboard hook picks out by Dwell Click's injection tag; the shell surfaces they open
   do not reliably take the foreground in time to be observed. Back is also seen arriving at the

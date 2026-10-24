@@ -1,6 +1,6 @@
 ---
 description: DSC configuration reference for PowerToys DwellClick module
-ms.date:     09/14/2026
+ms.date:     10/23/2026
 ms.topic:    reference
 title:       DwellClick Module
 ---
