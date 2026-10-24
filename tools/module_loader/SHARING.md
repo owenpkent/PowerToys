@@ -99,7 +99,8 @@ Files to share:
   - x64\Debug\PowerToys.DwellClick.dll  (or Release)
   - %LOCALAPPDATA%\Microsoft\PowerToys\DwellClick\settings.json
 
-Note: the module installs a low-level mouse hook and a polling thread; a drag
+Note: the module installs a low-level mouse hook and a polling thread (15 ms
+      while a countdown or the overlay is active, 100 ms when idle); a drag
       held by a dwell is released when the module is disabled or the host
       process exits gracefully.
 Size: ~650KB

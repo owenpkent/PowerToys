@@ -374,7 +374,9 @@ namespace dwellclick
             // (collapsing at position 0%, say) does not re-arm it. It is checked on every tick,
             // not only when the hovered index changes: a layout change resets the hover, and a pointer
             // that then sits outside would otherwise never clear the block, leaving the moved
-            // handle unable to fire again.
+            // handle unable to fire again. The module ticks at least every 100 ms even when idle
+            // (IDLE_POLL_INTERVAL_MS in dllmain.cpp), so a pointer moved off and back with
+            // SetCursorPos, which no hook reports, is still seen outside.
             if (m_blockedCommand && (hit < 0 || CommandFor(hit) != *m_blockedCommand))
             {
                 m_blockedCommand.reset();

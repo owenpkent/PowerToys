@@ -301,7 +301,8 @@ and played with `PlaySoundW(SND_MEMORY | SND_ASYNC | SND_NODEFAULT)` from the po
 `indicator_use_accent_color` (default `true`) and `indicator_color` (`"#RRGGBB"`, default
 `#0078D4`, parsed with `checkValidRGB`; a malformed string keeps the previous value) travel the same
 path as `show_countdown` and `overlay_size`: `OverlaySettings` into `Overlay::ApplySettings`. The
-ring's arc is repainted every tick, so a change shows immediately. The accent color is read with
+ring's color is part of the frame it compares before repainting (`IndicatorFrame`), so a change
+shows on the next poll. The accent color is read with
 `DwmGetColorizationColor` when a countdown starts.
 
 ## The overlay
