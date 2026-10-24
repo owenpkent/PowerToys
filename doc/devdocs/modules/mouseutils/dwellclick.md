@@ -55,7 +55,7 @@ began. Callers drive it with three entry points:
 |---|---|
 | `OnMove(pt, tick, s)` | Updates the position. Re-arms a locked machine, or restarts a running countdown, if the pointer moved far enough. Never fires anything. |
 | `Poll(tick, s)` | Advances the countdown. Returns progress for the countdown ring, and fires the action when progress reaches 1. |
-| `SetNextAction`, `SetPaused`, `OnPhysicalClick`, `LockUntilMove`, `ReleaseDrag`, `ResetTransient` | Lifecycle and suppression. |
+| `SetNextAction`, `SetPaused`, `OnPhysicalClick`, `OnPhysicalWheel`, `LockUntilMove`, `ReleaseDrag`, `ResetTransient` | Lifecycle and suppression. |
 
 `PollResult` carries `progress` (0 to 1), `fired`, the `action` that actually fired, and the point it
 fired at. Progress is 0 whenever the machine is locked or paused, and also on the poll that fires, so

@@ -18,8 +18,9 @@
 // dwell-style selection are overwhelmingly unintended activations rather than missed targets, so
 // every design choice below is biased toward refusing to fire when intent is unclear:
 //
-//   - The machine starts LOCKED and re-locks after every action, after a physical click, on pause,
-//     and on any live settings change. A lock is cleared only by deliberate pointer movement.
+//   - The machine starts LOCKED and re-locks after every action, after a physical click or wheel
+//     turn, on pause, and on any live settings change. A lock is cleared only by deliberate
+//     pointer movement.
 //   - Two separate distances gate that movement (this mirrors macOS Dwell Control, which exposes
 //     "dwell movement tolerance" and "post-action movement tolerance" as distinct settings):
 //     moveTolerancePixels is the jitter a countdown survives, and postActionTolerancePixels is

@@ -32,9 +32,9 @@
 // Issues a mouse click automatically when the pointer is held still for a configurable time,
 // for people who can move a pointer but cannot reliably click it. The decision logic lives in
 // DwellClickCore.h (Win32-free and unit tested); this file is the thin Win32 adapter around it:
-// a low-level mouse hook feeds the engine pointer moves and physical clicks, a polling loop on
-// the same thread advances the countdown, and a SendInput wrapper performs the injections the
-// engine asks for. The on-screen surfaces (a countdown ring at the pointer and a dwell-to-select
+// a low-level mouse hook feeds the engine pointer moves, physical clicks, and wheel turns, a
+// polling loop on the same thread advances the countdown, and a SendInput wrapper performs the
+// injections the engine asks for. The on-screen surfaces (a countdown ring at the pointer and a dwell-to-select
 // action toolbar, modeled on Ease Mouse and OpenMouse) live in DwellClickOverlay.cpp, with their
 // decisions in the Win32-free DwellClickToolbar.h.
 //
