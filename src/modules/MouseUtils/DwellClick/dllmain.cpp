@@ -890,6 +890,13 @@ void DwellClick::HookThreadMain()
         {
             // The same engine call the toolbar's pause button makes (see HandleToolbarCommand).
             m_engine.SetPaused(!m_engine.IsPaused());
+
+            // A shortcut gives no feedback of its own; show the result at the pointer when the
+            // toolbar is not showing it.
+            if (overlayCreated)
+            {
+                m_overlay.FlashPauseState(m_engine.IsPaused(), GetTickCount64());
+            }
         }
         if (m_cycleActionRequested.exchange(false))
         {
@@ -911,6 +918,10 @@ void DwellClick::HookThreadMain()
                 if (IsActionOffered(candidate))
                 {
                     m_engine.SetNextAction(candidate);
+                    if (overlayCreated)
+                    {
+                        m_overlay.FlashAction(candidate, GetTickCount64());
+                    }
                     break;
                 }
             }
@@ -968,9 +979,10 @@ void DwellClick::HookThreadMain()
 
         if (overlayCreated)
         {
-            // Injection failures are logged by the injector; progress drives the ring.
-            m_overlay.UpdateIndicator(cursor, result.progress, snapshot.dwellTimeMs, !overToolbar);
+            // Injection failures are logged by the injector; progress drives the ring. The
+            // toolbar state goes first because the ring's action badge reads it.
             m_overlay.SetToolbarState({ m_engine.NextAction(), m_engine.IsPaused(), m_engine.IsDragging() });
+            m_overlay.UpdateIndicator(cursor, result.progress, snapshot.dwellTimeMs, !overToolbar);
         }
 
         if (result.fired && m_playSound.load() && !m_clickSound.empty())

@@ -52,6 +52,9 @@ namespace
     // Gap kept between the toolbar and the screen edge, in 96-dpi units.
     constexpr int EDGE_MARGIN = 8;
     constexpr int INDICATOR_SIZES[3] = { 40, 48, 62 };
+
+    // How long a shortcut's feedback stays at the pointer.
+    constexpr uint64_t FLASH_DURATION_MS = 1200;
     constexpr double INDICATOR_RADII[3] = { 11.5, 15.0, 19.5 };
 
     constexpr int ClampSizeIndex(int index)
@@ -156,6 +159,211 @@ namespace
         Gdiplus::Pen split(color, r.Width * 0.08f);
         g.DrawLine(&split, r.X, splitY, r.X + r.Width, splitY);
         (void)radius;
+    }
+
+    // Draws a toolbar command's glyph centered in the button rect. Shared by the toolbar and the
+    // action badge beside the countdown ring, so both always show the same picture for an
+    // action. The collapse handle is not drawn here: its glyph depends on the toolbar's edge and
+    // state. backingColor is the surface the glyph sits on (Task view fills one window with it).
+    void DrawCommandGlyph(Gdiplus::Graphics& g, dwellclick::ToolbarCommand command, const Gdiplus::RectF& button, const Gdiplus::Color& glyphColor, bool paused, const Gdiplus::Color& backingColor)
+    {
+        using dwellclick::ToolbarCommand;
+
+        // Glyph metrics ride the button size so every overlay size keeps the same look.
+        const Gdiplus::REAL inset = button.Width * 0.275f;
+        Gdiplus::RectF glyph{ button.X + inset, button.Y + inset, button.Width - inset * 2, button.Height - inset * 2 };
+        Gdiplus::Pen pen(glyphColor, button.Width * 0.055f);
+        pen.SetStartCap(Gdiplus::LineCapRound);
+        pen.SetEndCap(Gdiplus::LineCapRound);
+        Gdiplus::SolidBrush brush(glyphColor);
+        const Gdiplus::REAL cx = glyph.X + glyph.Width / 2;
+        const Gdiplus::REAL cy = glyph.Y + glyph.Height / 2;
+
+        switch (command)
+        {
+        case ToolbarCommand::TogglePause:
+            if (paused)
+            {
+                // Resume affordance while paused.
+                Gdiplus::PointF triangle[3] = {
+                    { glyph.X + glyph.Width * 0.22f, glyph.Y },
+                    { glyph.X + glyph.Width * 0.95f, cy },
+                    { glyph.X + glyph.Width * 0.22f, glyph.Y + glyph.Height },
+                };
+                g.FillPolygon(&brush, triangle, 3);
+            }
+            else
+            {
+                const Gdiplus::REAL barWidth = glyph.Width * 0.26f;
+                g.FillRectangle(&brush, glyph.X + glyph.Width * 0.12f, glyph.Y, barWidth, glyph.Height);
+                g.FillRectangle(&brush, glyph.X + glyph.Width * 0.62f, glyph.Y, barWidth, glyph.Height);
+            }
+            break;
+        case ToolbarCommand::SelectLeftClick:
+            DrawMouseGlyph(g, glyph, glyphColor, 0);
+            break;
+        case ToolbarCommand::SelectDoubleClick:
+        {
+            DrawMouseGlyph(g, glyph, glyphColor, 0);
+            Gdiplus::Font font(L"Segoe UI", button.Width * 0.2f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
+            Gdiplus::PointF at{ button.X + button.Width * 0.62f, button.Y + button.Height * 0.58f };
+            g.DrawString(L"2", 1, &font, at, &brush);
+            break;
+        }
+        case ToolbarCommand::SelectRightClick:
+            DrawMouseGlyph(g, glyph, glyphColor, 1);
+            break;
+        case ToolbarCommand::SelectMiddleClick:
+            DrawMouseGlyph(g, glyph, glyphColor, 2);
+            break;
+        case ToolbarCommand::SelectScrollUp:
+        case ToolbarCommand::SelectScrollDown:
+        {
+            // An arrow over (or under) two content lines. ScrollDown is the mirror.
+            const bool up = command == ToolbarCommand::SelectScrollUp;
+            const Gdiplus::REAL head = glyph.Width * 0.24f;
+            const Gdiplus::REAL tipY = up ? glyph.Y : glyph.Y + glyph.Height;
+            const Gdiplus::REAL tailY = up ? glyph.Y + glyph.Height * 0.62f : glyph.Y + glyph.Height * 0.38f;
+            const Gdiplus::REAL headY = up ? tipY + head : tipY - head;
+            g.DrawLine(&pen, cx, tipY, cx, tailY);
+            g.DrawLine(&pen, cx, tipY, cx - head, headY);
+            g.DrawLine(&pen, cx, tipY, cx + head, headY);
+            const Gdiplus::REAL line1 = up ? glyph.Y + glyph.Height * 0.82f : glyph.Y + glyph.Height * 0.18f;
+            const Gdiplus::REAL line2 = up ? glyph.Y + glyph.Height : glyph.Y;
+            g.DrawLine(&pen, glyph.X + glyph.Width * 0.12f, line1, glyph.X + glyph.Width * 0.88f, line1);
+            g.DrawLine(&pen, glyph.X + glyph.Width * 0.12f, line2, glyph.X + glyph.Width * 0.88f, line2);
+            break;
+        }
+        case ToolbarCommand::SelectScrollLeft:
+        case ToolbarCommand::SelectScrollRight:
+        {
+            // The scroll glyph turned on its side: an arrow beside two content columns.
+            const bool left = command == ToolbarCommand::SelectScrollLeft;
+            const Gdiplus::REAL head = glyph.Height * 0.24f;
+            const Gdiplus::REAL tipX = left ? glyph.X : glyph.X + glyph.Width;
+            const Gdiplus::REAL tailX = left ? glyph.X + glyph.Width * 0.62f : glyph.X + glyph.Width * 0.38f;
+            const Gdiplus::REAL headX = left ? tipX + head : tipX - head;
+            g.DrawLine(&pen, tipX, cy, tailX, cy);
+            g.DrawLine(&pen, tipX, cy, headX, cy - head);
+            g.DrawLine(&pen, tipX, cy, headX, cy + head);
+            const Gdiplus::REAL col1 = left ? glyph.X + glyph.Width * 0.82f : glyph.X + glyph.Width * 0.18f;
+            const Gdiplus::REAL col2 = left ? glyph.X + glyph.Width : glyph.X;
+            g.DrawLine(&pen, col1, glyph.Y + glyph.Height * 0.12f, col1, glyph.Y + glyph.Height * 0.88f);
+            g.DrawLine(&pen, col2, glyph.Y + glyph.Height * 0.12f, col2, glyph.Y + glyph.Height * 0.88f);
+            break;
+        }
+        case ToolbarCommand::SelectZoomIn:
+        case ToolbarCommand::SelectZoomOut:
+        {
+            // A magnifier with a plus or a minus in the lens.
+            const Gdiplus::REAL lensR = glyph.Width * 0.34f;
+            const Gdiplus::REAL lx = glyph.X + lensR;
+            const Gdiplus::REAL ly = glyph.Y + lensR;
+            g.DrawEllipse(&pen, lx - lensR, ly - lensR, lensR * 2, lensR * 2);
+            const Gdiplus::REAL handleStart = lensR * 0.72f;
+            g.DrawLine(&pen, lx + handleStart, ly + handleStart, glyph.X + glyph.Width, glyph.Y + glyph.Height);
+            const Gdiplus::REAL mark = lensR * 0.5f;
+            g.DrawLine(&pen, lx - mark, ly, lx + mark, ly);
+            if (command == ToolbarCommand::SelectZoomIn)
+            {
+                g.DrawLine(&pen, lx, ly - mark, lx, ly + mark);
+            }
+            break;
+        }
+        case ToolbarCommand::Back:
+        {
+            // An arrow pointing left.
+            const Gdiplus::REAL head = glyph.Width * 0.34f;
+            g.DrawLine(&pen, glyph.X, cy, glyph.X + glyph.Width, cy);
+            g.DrawLine(&pen, glyph.X, cy, glyph.X + head, cy - head);
+            g.DrawLine(&pen, glyph.X, cy, glyph.X + head, cy + head);
+            break;
+        }
+        case ToolbarCommand::StartMenu:
+        {
+            // Four panes, the Start button's shape.
+            const Gdiplus::REAL gap = glyph.Width * 0.08f;
+            const Gdiplus::REAL pane = (glyph.Width - gap) / 2;
+            g.FillRectangle(&brush, glyph.X, glyph.Y, pane, pane);
+            g.FillRectangle(&brush, glyph.X + pane + gap, glyph.Y, pane, pane);
+            g.FillRectangle(&brush, glyph.X, glyph.Y + pane + gap, pane, pane);
+            g.FillRectangle(&brush, glyph.X + pane + gap, glyph.Y + pane + gap, pane, pane);
+            break;
+        }
+        case ToolbarCommand::ShowDesktop:
+        {
+            // A monitor on a stand: the desktop.
+            const Gdiplus::REAL screenH = glyph.Height * 0.66f;
+            g.DrawRectangle(&pen, glyph.X, glyph.Y + glyph.Height * 0.04f, glyph.Width, screenH);
+            g.DrawLine(&pen, cx, glyph.Y + glyph.Height * 0.04f + screenH, cx, glyph.Y + glyph.Height * 0.9f);
+            g.DrawLine(&pen, glyph.X + glyph.Width * 0.25f, glyph.Y + glyph.Height * 0.95f, glyph.X + glyph.Width * 0.75f, glyph.Y + glyph.Height * 0.95f);
+            break;
+        }
+        case ToolbarCommand::TaskView:
+        {
+            // Two staggered windows: the open apps side by side.
+            const Gdiplus::REAL w = glyph.Width * 0.62f;
+            const Gdiplus::REAL h = glyph.Height * 0.62f;
+            g.DrawRectangle(&pen, glyph.X + glyph.Width - w, glyph.Y, w, h);
+            Gdiplus::SolidBrush backing(backingColor);
+            g.FillRectangle(&backing, glyph.X, glyph.Y + glyph.Height - h, w, h);
+            g.DrawRectangle(&pen, glyph.X, glyph.Y + glyph.Height - h, w, h);
+            break;
+        }
+        case ToolbarCommand::Notifications:
+        {
+            // A bell: dome, rim, and clapper.
+            Gdiplus::GraphicsPath bell;
+            const Gdiplus::REAL rimY = glyph.Y + glyph.Height * 0.74f;
+            bell.AddArc(glyph.X + glyph.Width * 0.18f, glyph.Y + glyph.Height * 0.04f, glyph.Width * 0.64f, glyph.Height * 0.64f, 180.0f, 180.0f);
+            bell.AddLine(glyph.X + glyph.Width * 0.82f, glyph.Y + glyph.Height * 0.36f, glyph.X + glyph.Width * 0.92f, rimY);
+            bell.AddLine(glyph.X + glyph.Width * 0.08f, rimY, glyph.X + glyph.Width * 0.18f, glyph.Y + glyph.Height * 0.36f);
+            bell.CloseFigure();
+            g.DrawPath(&pen, &bell);
+            const Gdiplus::REAL clapper = glyph.Width * 0.1f;
+            g.FillEllipse(&brush, cx - clapper, glyph.Y + glyph.Height * 0.82f, clapper * 2, clapper * 1.6f);
+            break;
+        }
+        case ToolbarCommand::OpenSettings:
+        {
+            // A gear: toothed ring around a hub.
+            const Gdiplus::REAL outer = glyph.Width * 0.34f;
+            const Gdiplus::REAL tooth = glyph.Width * 0.5f;
+            Gdiplus::Pen toothPen(glyphColor, glyph.Width * 0.16f);
+            for (int t = 0; t < 8; ++t)
+            {
+                const double angle = t * 3.14159265 / 4.0;
+                const auto dx = static_cast<Gdiplus::REAL>(std::cos(angle));
+                const auto dy = static_cast<Gdiplus::REAL>(std::sin(angle));
+                g.DrawLine(&toothPen, cx + dx * outer, cy + dy * outer, cx + dx * tooth, cy + dy * tooth);
+            }
+            g.DrawEllipse(&pen, cx - outer, cy - outer, outer * 2, outer * 2);
+            Gdiplus::SolidBrush hub(glyphColor);
+            const Gdiplus::REAL hubR = glyph.Width * 0.12f;
+            g.FillEllipse(&hub, cx - hubR, cy - hubR, hubR * 2, hubR * 2);
+            break;
+        }
+        case ToolbarCommand::SelectDrag:
+        default:
+        {
+            // A four-direction move glyph.
+            const Gdiplus::REAL arm = glyph.Width * 0.42f;
+            const Gdiplus::REAL head = glyph.Width * 0.16f;
+            g.DrawLine(&pen, cx - arm, cy, cx + arm, cy);
+            g.DrawLine(&pen, cx, cy - arm, cx, cy + arm);
+            const Gdiplus::PointF heads[4][3] = {
+                { { cx - arm, cy }, { cx - arm + head, cy - head }, { cx - arm + head, cy + head } },
+                { { cx + arm, cy }, { cx + arm - head, cy - head }, { cx + arm - head, cy + head } },
+                { { cx, cy - arm }, { cx - head, cy - arm + head }, { cx + head, cy - arm + head } },
+                { { cx, cy + arm }, { cx - head, cy + arm - head }, { cx + head, cy + arm - head } },
+            };
+            for (const auto& tri : heads)
+            {
+                g.FillPolygon(&brush, tri, 3);
+            }
+            break;
+        }
+        }
     }
 }
 
@@ -594,8 +802,14 @@ namespace dwellclick
                 g.EndContainer(container);
             }
 
-            // Glyph metrics ride the button size so every overlay size keeps the same look.
             const Gdiplus::Color glyphColor = isActive ? GLYPH_ON_ACCENT : GLYPH;
+            if (command != ToolbarCommand::ToggleCollapse)
+            {
+                DrawCommandGlyph(g, command, button, glyphColor, m_state.paused, BAR_BACKGROUND);
+                continue;
+            }
+
+            // The collapse handle's glyph depends on the toolbar's edge and state.
             const Gdiplus::REAL inset = button.Width * 0.275f;
             Gdiplus::RectF glyph{ button.X + inset, button.Y + inset, button.Width - inset * 2, button.Height - inset * 2 };
             Gdiplus::Pen pen(glyphColor, button.Width * 0.055f);
@@ -605,245 +819,56 @@ namespace dwellclick
             const Gdiplus::REAL cx = glyph.X + glyph.Width / 2;
             const Gdiplus::REAL cy = glyph.Y + glyph.Height / 2;
 
-            switch (command)
+            if (IsFloating())
             {
-            case ToolbarCommand::ToggleCollapse:
-            {
-                if (IsFloating())
+                if (m_model.IsCollapsed())
                 {
-                    if (m_model.IsCollapsed())
+                    // The floating button: a 3 x 3 grid of dots, "open the menu".
+                    const Gdiplus::REAL dot = glyph.Width * 0.11f;
+                    for (int row = 0; row < 3; ++row)
                     {
-                        // The floating button: a 3 x 3 grid of dots, "open the menu".
-                        const Gdiplus::REAL dot = glyph.Width * 0.11f;
-                        for (int row = 0; row < 3; ++row)
+                        for (int col = 0; col < 3; ++col)
                         {
-                            for (int col = 0; col < 3; ++col)
-                            {
-                                const Gdiplus::REAL dx = glyph.X + glyph.Width * (0.15f + 0.35f * col);
-                                const Gdiplus::REAL dy = glyph.Y + glyph.Height * (0.15f + 0.35f * row);
-                                g.FillEllipse(&brush, dx - dot, dy - dot, dot * 2, dot * 2);
-                            }
+                            const Gdiplus::REAL dx = glyph.X + glyph.Width * (0.15f + 0.35f * col);
+                            const Gdiplus::REAL dy = glyph.Y + glyph.Height * (0.15f + 0.35f * row);
+                            g.FillEllipse(&brush, dx - dot, dy - dot, dot * 2, dot * 2);
                         }
                     }
-                    else
-                    {
-                        // Close the menu.
-                        const Gdiplus::REAL k = glyph.Width * 0.32f;
-                        g.DrawLine(&pen, cx - k, cy - k, cx + k, cy + k);
-                        g.DrawLine(&pen, cx - k, cy + k, cx + k, cy - k);
-                    }
-                    break;
-                }
-
-                // Chevron pointing into the docked edge to collapse, away from it to expand.
-                // The side edges point it left or right; the top and bottom edges, up or down.
-                const int side = m_settings.toolbarSide;
-                const bool horizontalEdge = side == 2 || side == 3;
-                const Gdiplus::REAL edgeDir = (side == 0 || side == 2) ? -1.0f : 1.0f;
-                const Gdiplus::REAL dir = m_model.IsCollapsed() ? -edgeDir : edgeDir;
-                const Gdiplus::REAL span = glyph.Width * 0.28f;
-                const Gdiplus::REAL reach = glyph.Height * 0.35f;
-                Gdiplus::PointF points[3] = {
-                    { cx - span * dir * 0.5f, cy - reach },
-                    { cx + span * dir * 0.9f, cy },
-                    { cx - span * dir * 0.5f, cy + reach },
-                };
-                if (horizontalEdge)
-                {
-                    for (auto& point : points)
-                    {
-                        // Turn the chevron by a quarter turn about the button center.
-                        const Gdiplus::REAL dx = point.X - cx;
-                        const Gdiplus::REAL dy = point.Y - cy;
-                        point = Gdiplus::PointF{ cx - dy, cy + dx };
-                    }
-                }
-                g.DrawLines(&pen, points, 3);
-                break;
-            }
-            case ToolbarCommand::TogglePause:
-                if (m_state.paused)
-                {
-                    // Resume affordance while paused.
-                    Gdiplus::PointF triangle[3] = {
-                        { glyph.X + glyph.Width * 0.22f, glyph.Y },
-                        { glyph.X + glyph.Width * 0.95f, cy },
-                        { glyph.X + glyph.Width * 0.22f, glyph.Y + glyph.Height },
-                    };
-                    g.FillPolygon(&brush, triangle, 3);
                 }
                 else
                 {
-                    const Gdiplus::REAL barWidth = glyph.Width * 0.26f;
-                    g.FillRectangle(&brush, glyph.X + glyph.Width * 0.12f, glyph.Y, barWidth, glyph.Height);
-                    g.FillRectangle(&brush, glyph.X + glyph.Width * 0.62f, glyph.Y, barWidth, glyph.Height);
+                    // Close the menu.
+                    const Gdiplus::REAL k = glyph.Width * 0.32f;
+                    g.DrawLine(&pen, cx - k, cy - k, cx + k, cy + k);
+                    g.DrawLine(&pen, cx - k, cy + k, cx + k, cy - k);
                 }
-                break;
-            case ToolbarCommand::SelectLeftClick:
-                DrawMouseGlyph(g, glyph, glyphColor, 0);
-                break;
-            case ToolbarCommand::SelectDoubleClick:
-            {
-                DrawMouseGlyph(g, glyph, glyphColor, 0);
-                Gdiplus::Font font(L"Segoe UI", button.Width * 0.2f, Gdiplus::FontStyleBold, Gdiplus::UnitPixel);
-                Gdiplus::PointF at{ button.X + button.Width * 0.62f, button.Y + button.Height * 0.58f };
-                g.DrawString(L"2", 1, &font, at, &brush);
-                break;
+                continue;
             }
-            case ToolbarCommand::SelectRightClick:
-                DrawMouseGlyph(g, glyph, glyphColor, 1);
-                break;
-            case ToolbarCommand::SelectMiddleClick:
-                DrawMouseGlyph(g, glyph, glyphColor, 2);
-                break;
-            case ToolbarCommand::SelectScrollUp:
-            case ToolbarCommand::SelectScrollDown:
+
+            // Chevron pointing into the docked edge to collapse, away from it to expand.
+            // The side edges point it left or right; the top and bottom edges, up or down.
+            const int side = m_settings.toolbarSide;
+            const bool horizontalEdge = side == 2 || side == 3;
+            const Gdiplus::REAL edgeDir = (side == 0 || side == 2) ? -1.0f : 1.0f;
+            const Gdiplus::REAL dir = m_model.IsCollapsed() ? -edgeDir : edgeDir;
+            const Gdiplus::REAL span = glyph.Width * 0.28f;
+            const Gdiplus::REAL reach = glyph.Height * 0.35f;
+            Gdiplus::PointF points[3] = {
+                { cx - span * dir * 0.5f, cy - reach },
+                { cx + span * dir * 0.9f, cy },
+                { cx - span * dir * 0.5f, cy + reach },
+            };
+            if (horizontalEdge)
             {
-                // An arrow over (or under) two content lines. ScrollDown is the mirror.
-                const bool up = command == ToolbarCommand::SelectScrollUp;
-                const Gdiplus::REAL head = glyph.Width * 0.24f;
-                const Gdiplus::REAL tipY = up ? glyph.Y : glyph.Y + glyph.Height;
-                const Gdiplus::REAL tailY = up ? glyph.Y + glyph.Height * 0.62f : glyph.Y + glyph.Height * 0.38f;
-                const Gdiplus::REAL headY = up ? tipY + head : tipY - head;
-                g.DrawLine(&pen, cx, tipY, cx, tailY);
-                g.DrawLine(&pen, cx, tipY, cx - head, headY);
-                g.DrawLine(&pen, cx, tipY, cx + head, headY);
-                const Gdiplus::REAL line1 = up ? glyph.Y + glyph.Height * 0.82f : glyph.Y + glyph.Height * 0.18f;
-                const Gdiplus::REAL line2 = up ? glyph.Y + glyph.Height : glyph.Y;
-                g.DrawLine(&pen, glyph.X + glyph.Width * 0.12f, line1, glyph.X + glyph.Width * 0.88f, line1);
-                g.DrawLine(&pen, glyph.X + glyph.Width * 0.12f, line2, glyph.X + glyph.Width * 0.88f, line2);
-                break;
-            }
-            case ToolbarCommand::SelectScrollLeft:
-            case ToolbarCommand::SelectScrollRight:
-            {
-                // The scroll glyph turned on its side: an arrow beside two content columns.
-                const bool left = command == ToolbarCommand::SelectScrollLeft;
-                const Gdiplus::REAL head = glyph.Height * 0.24f;
-                const Gdiplus::REAL tipX = left ? glyph.X : glyph.X + glyph.Width;
-                const Gdiplus::REAL tailX = left ? glyph.X + glyph.Width * 0.62f : glyph.X + glyph.Width * 0.38f;
-                const Gdiplus::REAL headX = left ? tipX + head : tipX - head;
-                g.DrawLine(&pen, tipX, cy, tailX, cy);
-                g.DrawLine(&pen, tipX, cy, headX, cy - head);
-                g.DrawLine(&pen, tipX, cy, headX, cy + head);
-                const Gdiplus::REAL col1 = left ? glyph.X + glyph.Width * 0.82f : glyph.X + glyph.Width * 0.18f;
-                const Gdiplus::REAL col2 = left ? glyph.X + glyph.Width : glyph.X;
-                g.DrawLine(&pen, col1, glyph.Y + glyph.Height * 0.12f, col1, glyph.Y + glyph.Height * 0.88f);
-                g.DrawLine(&pen, col2, glyph.Y + glyph.Height * 0.12f, col2, glyph.Y + glyph.Height * 0.88f);
-                break;
-            }
-            case ToolbarCommand::SelectZoomIn:
-            case ToolbarCommand::SelectZoomOut:
-            {
-                // A magnifier with a plus or a minus in the lens.
-                const Gdiplus::REAL lensR = glyph.Width * 0.34f;
-                const Gdiplus::REAL lx = glyph.X + lensR;
-                const Gdiplus::REAL ly = glyph.Y + lensR;
-                g.DrawEllipse(&pen, lx - lensR, ly - lensR, lensR * 2, lensR * 2);
-                const Gdiplus::REAL handleStart = lensR * 0.72f;
-                g.DrawLine(&pen, lx + handleStart, ly + handleStart, glyph.X + glyph.Width, glyph.Y + glyph.Height);
-                const Gdiplus::REAL mark = lensR * 0.5f;
-                g.DrawLine(&pen, lx - mark, ly, lx + mark, ly);
-                if (command == ToolbarCommand::SelectZoomIn)
+                for (auto& point : points)
                 {
-                    g.DrawLine(&pen, lx, ly - mark, lx, ly + mark);
+                    // Turn the chevron by a quarter turn about the button center.
+                    const Gdiplus::REAL dx = point.X - cx;
+                    const Gdiplus::REAL dy = point.Y - cy;
+                    point = Gdiplus::PointF{ cx - dy, cy + dx };
                 }
-                break;
             }
-            case ToolbarCommand::Back:
-            {
-                // An arrow pointing left.
-                const Gdiplus::REAL head = glyph.Width * 0.34f;
-                g.DrawLine(&pen, glyph.X, cy, glyph.X + glyph.Width, cy);
-                g.DrawLine(&pen, glyph.X, cy, glyph.X + head, cy - head);
-                g.DrawLine(&pen, glyph.X, cy, glyph.X + head, cy + head);
-                break;
-            }
-            case ToolbarCommand::StartMenu:
-            {
-                // Four panes, the Start button's shape.
-                const Gdiplus::REAL gap = glyph.Width * 0.08f;
-                const Gdiplus::REAL pane = (glyph.Width - gap) / 2;
-                g.FillRectangle(&brush, glyph.X, glyph.Y, pane, pane);
-                g.FillRectangle(&brush, glyph.X + pane + gap, glyph.Y, pane, pane);
-                g.FillRectangle(&brush, glyph.X, glyph.Y + pane + gap, pane, pane);
-                g.FillRectangle(&brush, glyph.X + pane + gap, glyph.Y + pane + gap, pane, pane);
-                break;
-            }
-            case ToolbarCommand::ShowDesktop:
-            {
-                // A monitor on a stand: the desktop.
-                const Gdiplus::REAL screenH = glyph.Height * 0.66f;
-                g.DrawRectangle(&pen, glyph.X, glyph.Y + glyph.Height * 0.04f, glyph.Width, screenH);
-                g.DrawLine(&pen, cx, glyph.Y + glyph.Height * 0.04f + screenH, cx, glyph.Y + glyph.Height * 0.9f);
-                g.DrawLine(&pen, glyph.X + glyph.Width * 0.25f, glyph.Y + glyph.Height * 0.95f, glyph.X + glyph.Width * 0.75f, glyph.Y + glyph.Height * 0.95f);
-                break;
-            }
-            case ToolbarCommand::TaskView:
-            {
-                // Two staggered windows: the open apps side by side.
-                const Gdiplus::REAL w = glyph.Width * 0.62f;
-                const Gdiplus::REAL h = glyph.Height * 0.62f;
-                g.DrawRectangle(&pen, glyph.X + glyph.Width - w, glyph.Y, w, h);
-                Gdiplus::SolidBrush backing(BAR_BACKGROUND);
-                g.FillRectangle(&backing, glyph.X, glyph.Y + glyph.Height - h, w, h);
-                g.DrawRectangle(&pen, glyph.X, glyph.Y + glyph.Height - h, w, h);
-                break;
-            }
-            case ToolbarCommand::Notifications:
-            {
-                // A bell: dome, rim, and clapper.
-                Gdiplus::GraphicsPath bell;
-                const Gdiplus::REAL rimY = glyph.Y + glyph.Height * 0.74f;
-                bell.AddArc(glyph.X + glyph.Width * 0.18f, glyph.Y + glyph.Height * 0.04f, glyph.Width * 0.64f, glyph.Height * 0.64f, 180.0f, 180.0f);
-                bell.AddLine(glyph.X + glyph.Width * 0.82f, glyph.Y + glyph.Height * 0.36f, glyph.X + glyph.Width * 0.92f, rimY);
-                bell.AddLine(glyph.X + glyph.Width * 0.08f, rimY, glyph.X + glyph.Width * 0.18f, glyph.Y + glyph.Height * 0.36f);
-                bell.CloseFigure();
-                g.DrawPath(&pen, &bell);
-                const Gdiplus::REAL clapper = glyph.Width * 0.1f;
-                g.FillEllipse(&brush, cx - clapper, glyph.Y + glyph.Height * 0.82f, clapper * 2, clapper * 1.6f);
-                break;
-            }
-            case ToolbarCommand::OpenSettings:
-            {
-                // A gear: toothed ring around a hub.
-                const Gdiplus::REAL outer = glyph.Width * 0.34f;
-                const Gdiplus::REAL tooth = glyph.Width * 0.5f;
-                Gdiplus::Pen toothPen(glyphColor, glyph.Width * 0.16f);
-                for (int t = 0; t < 8; ++t)
-                {
-                    const double angle = t * 3.14159265 / 4.0;
-                    const auto dx = static_cast<Gdiplus::REAL>(std::cos(angle));
-                    const auto dy = static_cast<Gdiplus::REAL>(std::sin(angle));
-                    g.DrawLine(&toothPen, cx + dx * outer, cy + dy * outer, cx + dx * tooth, cy + dy * tooth);
-                }
-                g.DrawEllipse(&pen, cx - outer, cy - outer, outer * 2, outer * 2);
-                Gdiplus::SolidBrush hub(glyphColor);
-                const Gdiplus::REAL hubR = glyph.Width * 0.12f;
-                g.FillEllipse(&hub, cx - hubR, cy - hubR, hubR * 2, hubR * 2);
-                break;
-            }
-            case ToolbarCommand::SelectDrag:
-            default:
-            {
-                // A four-direction move glyph.
-                const Gdiplus::REAL arm = glyph.Width * 0.42f;
-                const Gdiplus::REAL head = glyph.Width * 0.16f;
-                g.DrawLine(&pen, cx - arm, cy, cx + arm, cy);
-                g.DrawLine(&pen, cx, cy - arm, cx, cy + arm);
-                const Gdiplus::PointF heads[4][3] = {
-                    { { cx - arm, cy }, { cx - arm + head, cy - head }, { cx - arm + head, cy + head } },
-                    { { cx + arm, cy }, { cx + arm - head, cy - head }, { cx + arm - head, cy + head } },
-                    { { cx, cy - arm }, { cx - head, cy - arm + head }, { cx + head, cy - arm + head } },
-                    { { cx, cy + arm }, { cx - head, cy + arm - head }, { cx + head, cy + arm - head } },
-                };
-                for (const auto& tri : heads)
-                {
-                    g.FillPolygon(&brush, tri, 3);
-                }
-                break;
-            }
-            }
+            g.DrawLines(&pen, points, 3);
         }
 
         surface.Commit(m_toolbar, POINT{ m_toolbarRect.left, m_toolbarRect.top });
@@ -857,7 +882,9 @@ namespace dwellclick
         {
             return;
         }
-        if (!show || !m_settings.showCountdown || !ShowCountdownRing(progress, dwellMs))
+        const bool ring = show && m_settings.showCountdown && ShowCountdownRing(progress, dwellMs);
+        const bool flash = m_lastTick < m_flashUntil;
+        if (!ring && !flash)
         {
             if (m_indicatorVisible)
             {
@@ -866,7 +893,7 @@ namespace dwellclick
             }
             return;
         }
-        if (!m_indicatorVisible)
+        if (ring && !m_indicatorVisible)
         {
             // A countdown is starting: pick up the current Windows accent color, so a change
             // in Windows settings shows from the next countdown without polling DWM per frame.
@@ -877,7 +904,7 @@ namespace dwellclick
                 m_accentColor = RGB((colorization >> 16) & 0xFF, (colorization >> 8) & 0xFF, colorization & 0xFF);
             }
         }
-        PaintIndicator(pt, progress);
+        PaintIndicator(pt, progress, ring);
         if (!m_indicatorVisible)
         {
             ShowWindow(m_indicator, SW_SHOWNOACTIVATE);
@@ -885,11 +912,50 @@ namespace dwellclick
         }
     }
 
-    void Overlay::PaintIndicator(POINT pt, double progress)
+    bool Overlay::ToolbarShowsState() const
+    {
+        // The open bar (or the floating style's open menu) highlights the current action and
+        // the pause state; a hidden toolbar, a collapsed handle, or the closed floating button
+        // shows neither.
+        return m_toolbar && m_settings.showToolbar && !m_model.IsCollapsed();
+    }
+
+    void Overlay::StartFlash(ToolbarCommand command, bool pausedGlyph, uint64_t tick)
+    {
+        if (ToolbarShowsState())
+        {
+            return;
+        }
+        m_flashCommand = command;
+        m_flashPausedGlyph = pausedGlyph;
+        m_flashUntil = tick + FLASH_DURATION_MS;
+    }
+
+    void Overlay::FlashPauseState(bool paused, uint64_t tick)
+    {
+        // Show the state now in effect: pause bars once paused, the play triangle once resumed.
+        // The pause glyph draws the triangle when told it is paused (on the toolbar it is the
+        // resume affordance), so the flag is inverted here.
+        StartFlash(ToolbarCommand::TogglePause, !paused, tick);
+    }
+
+    void Overlay::FlashAction(DwellAction action, uint64_t tick)
+    {
+        StartFlash(SelectCommandFor(action), false, tick);
+    }
+
+    void Overlay::PaintIndicator(POINT pt, double progress, bool ring)
     {
         const double scale = Scale();
         const int sizeIndex = ClampSizeIndex(m_settings.overlaySize);
-        const int size = static_cast<int>(INDICATOR_SIZES[sizeIndex] * scale);
+        const int ringSize = static_cast<int>(INDICATOR_SIZES[sizeIndex] * scale);
+
+        // The badge (any action but a left click) and the shortcut feedback sit up and to the
+        // left of the pointer, away from the arrow cursor, which hangs down and to the right of
+        // its hotspot. They need a canvas twice the ring's size, still centered on the pointer.
+        const bool flash = !ring;
+        const bool badge = ring && m_state.currentAction != DwellAction::LeftClick;
+        const int size = (badge || flash) ? ringSize * 2 : ringSize;
 
         LayeredSurface surface;
         if (!surface.Init(size, size))
@@ -899,25 +965,49 @@ namespace dwellclick
         Gdiplus::Bitmap canvas(size, size, size * 4, PixelFormat32bppPARGB, static_cast<BYTE*>(surface.bits));
         Gdiplus::Graphics g(&canvas);
         g.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        g.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
         g.Clear(Gdiplus::Color(0, 0, 0, 0));
 
         const Gdiplus::REAL center = size / 2.0f;
-        const Gdiplus::REAL radius = static_cast<Gdiplus::REAL>(INDICATOR_RADII[sizeIndex] * scale);
-        const Gdiplus::RectF ring{ center - radius, center - radius, radius * 2, radius * 2 };
+        if (ring)
+        {
+            const Gdiplus::REAL radius = static_cast<Gdiplus::REAL>(INDICATOR_RADII[sizeIndex] * scale);
+            const Gdiplus::RectF ringRect{ center - radius, center - radius, radius * 2, radius * 2 };
 
-        // A dark halo keeps the ring readable over light content, the white track over dark;
-        // stroke widths ride the radius so every overlay size keeps the same weight.
-        Gdiplus::Pen halo(RING_HALO, radius * 0.42f);
-        g.DrawEllipse(&halo, ring);
-        Gdiplus::Pen track(RING_TRACK, radius * 0.24f);
-        g.DrawEllipse(&track, ring);
+            // A dark halo keeps the ring readable over light content, the white track over dark;
+            // stroke widths ride the radius so every overlay size keeps the same weight.
+            Gdiplus::Pen halo(RING_HALO, radius * 0.42f);
+            g.DrawEllipse(&halo, ringRect);
+            Gdiplus::Pen track(RING_TRACK, radius * 0.24f);
+            g.DrawEllipse(&track, ringRect);
 
-        const COLORREF ringColor = m_settings.indicatorUseAccentColor ? m_accentColor : m_settings.indicatorColor;
-        Gdiplus::Pen arc(Gdiplus::Color(255, GetRValue(ringColor), GetGValue(ringColor), GetBValue(ringColor)), radius * 0.24f);
-        arc.SetStartCap(Gdiplus::LineCapRound);
-        arc.SetEndCap(Gdiplus::LineCapRound);
-        const Gdiplus::REAL sweep = static_cast<Gdiplus::REAL>(360.0 * (progress > 1.0 ? 1.0 : progress));
-        g.DrawArc(&arc, ring, -90.0f, sweep);
+            const COLORREF ringColor = m_settings.indicatorUseAccentColor ? m_accentColor : m_settings.indicatorColor;
+            Gdiplus::Pen arc(Gdiplus::Color(255, GetRValue(ringColor), GetGValue(ringColor), GetBValue(ringColor)), radius * 0.24f);
+            arc.SetStartCap(Gdiplus::LineCapRound);
+            arc.SetEndCap(Gdiplus::LineCapRound);
+            const Gdiplus::REAL sweep = static_cast<Gdiplus::REAL>(360.0 * (progress > 1.0 ? 1.0 : progress));
+            g.DrawArc(&arc, ringRect, -90.0f, sweep);
+        }
+
+        if (badge || flash)
+        {
+            // The shortcut feedback is larger than the badge: it is the only thing on screen.
+            const Gdiplus::REAL diameter = ringSize * (flash ? 0.9f : 0.7f);
+            const Gdiplus::REAL offset = ringSize * (flash ? 0.55f : 0.6f);
+            const Gdiplus::RectF disc{ center - offset - diameter / 2, center - offset - diameter / 2, diameter, diameter };
+            Gdiplus::SolidBrush backing(BAR_BACKGROUND);
+            g.FillEllipse(&backing, disc);
+            Gdiplus::Pen border(BAR_BORDER, 1.0f);
+            g.DrawEllipse(&border, disc);
+            if (flash)
+            {
+                DrawCommandGlyph(g, m_flashCommand, disc, GLYPH, m_flashPausedGlyph, BAR_BACKGROUND);
+            }
+            else
+            {
+                DrawCommandGlyph(g, SelectCommandFor(m_state.currentAction), disc, GLYPH, false, BAR_BACKGROUND);
+            }
+        }
 
         POINT position{ pt.x - size / 2, pt.y - size / 2 };
         SetWindowPos(m_indicator, HWND_TOPMOST, position.x, position.y, size, size, SWP_NOACTIVATE | SWP_NOREDRAW);

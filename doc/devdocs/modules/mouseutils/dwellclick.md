@@ -25,7 +25,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
   and keystroke button sends to Windows, as data, with 18 tests in
   [InputTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/InputTests.cpp)
 - [DwellClickToolbar.h](/src/modules/MouseUtils/DwellClick/DwellClickToolbar.h) - the toolbar's
-  Win32-free state machine and layout, with 37 tests in
+  Win32-free state machine and layout, with 38 tests in
   [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp)
 - [DwellClickOverlay.cpp](/src/modules/MouseUtils/DwellClick/DwellClickOverlay.cpp) - the layered
   windows for the countdown ring, the action toolbar, and the floating large menu
@@ -253,6 +253,12 @@ while the module is disabled, because the runner delivers hotkeys regardless.
 | 0 | `activation_shortcut` | Win+Shift+W | Toggles pause with `SetPaused`, the call the toolbar's pause button makes. |
 | 1 | `cycle_action_shortcut` | Win+Shift+A | Releases a held drag, then `SetNextAction` to the next offered `DwellAction` in enum order, wrapping. An action is offered when it is the default action or its toolbar button is switched on (`IsActionOffered`), so an action turned off in Settings never comes up. The toolbar highlight follows because the poll loop pushes `NextAction()` into the toolbar every tick. |
 
+A shortcut has no feedback of its own, so when the toolbar is not showing the state (it is
+hidden, its handle is collapsed, or the floating button's menu is closed) the countdown window
+shows the result at the pointer for 1.2 s: the pause bars or play triangle, or the glyph of the
+action the cycle shortcut chose (`Overlay::FlashPauseState`, `Overlay::FlashAction`). An open
+toolbar already shows both, so it gets no flash.
+
 ## Click sound
 
 With `play_sound` on, a fired action plays a 40 ms, 1 kHz click. The WAV image is synthesized in
@@ -280,6 +286,12 @@ pointer-attached countdown with an on-screen action menu:
   fifth of a countdown, capped at 250 ms (`ShowCountdownRing` in DwellClickCore.h): once the
   engine is armed, every brief pause in ordinary movement starts a countdown, and a ring shown
   from the first poll trailed the moving cursor. Only the feedback waits; the click does not.
+- **The action badge.** Whenever the next action is anything but a left click, a small disc with
+  that action's toolbar glyph sits up and to the left of the ring, away from the arrow cursor,
+  which hangs down and to the right of its hotspot. A sticky scroll mode or the second half of a
+  drag is then visible where the user is looking, not only on the toolbar at the screen edge.
+  The badge and the toolbar share one glyph painter (`DrawCommandGlyph`), and
+  `SelectCommandFor` maps an action back to the toolbar command that draws it.
 - **The action toolbar** docks to any screen edge: a collapse handle, pause/resume, and a
   Settings-chosen set of buttons. The action buttons choose the next dwell action (left, double,
   right, middle, drag, scroll up/down/left/right, zoom in/out). The system buttons act at once
@@ -402,10 +414,11 @@ eight classes, using a recording fake injector and an explicit tick:
 (53 tests in eleven classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
-37 tests over the toolbar model in seven classes: layout and hit-testing, the configurable
+38 tests over the toolbar model in seven classes: layout and hit-testing, the configurable
 button set and size, the hover dwell (activation, jitter, re-arm, tick wrap), physical clicks
 plus the collapse handle, horizontal flow and wrapping (`SetLayout`, `ButtonsThatFit`), the
-command-to-action mapping (every action has a toolbar command; system commands choose none),
+command-to-action mapping (every action has a toolbar command and maps back to it; system
+commands choose none),
 and the review regressions: the leave-to-rearm block surviving a layout change without trapping a
 moved handle, a button that appears under a resting pointer (`BlockAt`), and `FitGrid` for
 roomy, short, small high-DPI, and impossible areas.

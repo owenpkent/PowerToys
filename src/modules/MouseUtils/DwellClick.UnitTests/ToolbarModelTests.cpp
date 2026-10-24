@@ -311,6 +311,19 @@ namespace DwellClickToolbarTests
                 Assert::IsTrue(found);
             }
         }
+
+        TEST_METHOD (SelectCommandForIsTheInverseOfActionFor)
+        {
+            // The ring's action badge and the cycle shortcut's feedback draw an action with its
+            // toolbar glyph, so every action must map back to the command that selects it.
+            for (int a = 0; a <= static_cast<int>(LastDwellAction); ++a)
+            {
+                const auto action = static_cast<DwellAction>(a);
+                const auto roundTrip = ActionFor(SelectCommandFor(action));
+                Assert::IsTrue(roundTrip.has_value());
+                Assert::IsTrue(*roundTrip == action);
+            }
+        }
     };
 
     TEST_CLASS (ToolbarCustomization)
