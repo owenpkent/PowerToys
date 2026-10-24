@@ -521,6 +521,46 @@ namespace DwellClickEngineTests
             Assert::IsTrue(e.Poll(300, s).fired);
         }
 
+        TEST_METHOD (APhysicalWheelCancelsARunningCountdown)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            Arm(e, s);
+            e.Poll(50, s);
+
+            // The page scrolled under the resting pointer; the countdown was aimed at what was
+            // there before, so it must not complete onto whatever scrolled into place.
+            e.OnPhysicalWheel();
+            Assert::AreEqual(0.0, e.Poll(100, s).progress);
+            Assert::IsFalse(e.Poll(5000, s).fired);
+            Assert::AreEqual(static_cast<size_t>(0), injector.Count());
+
+            e.OnMove(PointL{ 300, 300 }, 5100, s);
+            Assert::IsTrue(e.Poll(5200, s).fired);
+        }
+
+        TEST_METHOD (APhysicalWheelEndsADwellScrollRepeat)
+        {
+            FakeInjector injector;
+            Engine e(injector);
+            const Settings s = DefaultSettings();
+
+            e.SetNextAction(DwellAction::ScrollDown);
+            Arm(e, s);
+            Assert::IsTrue(e.Poll(100, s).fired);
+            Assert::IsTrue(e.Poll(200, s).fired);
+
+            // The user takes over with the wheel: the repeat stops until the pointer moves, and
+            // the scroll mode itself is kept for the next rest.
+            e.OnPhysicalWheel();
+            Assert::IsFalse(e.Poll(300, s).fired);
+            Assert::IsFalse(e.Poll(5000, s).fired);
+            Assert::AreEqual(static_cast<size_t>(2), injector.Count());
+            Assert::IsTrue(e.NextAction() == DwellAction::ScrollDown);
+        }
+
         TEST_METHOD (LockUntilMoveProtectsAgainstLiveSettingsChanges)
         {
             FakeInjector injector;

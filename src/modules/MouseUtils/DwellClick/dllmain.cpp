@@ -1133,6 +1133,13 @@ void DwellClick::HandleMouseMessage(WPARAM wParam, const MSLLHOOKSTRUCT* data)
             m_engine.SetExternalButtonHeld(false);
         }
         break;
+    case WM_MOUSEWHEEL:
+    case WM_MOUSEHWHEEL:
+        // The content scrolled under a resting pointer, so a running countdown is now aimed at
+        // something the user never chose. The module's own wheel notches carry the injection
+        // tag and were filtered above, so dwell scrolling does not stop itself.
+        m_engine.OnPhysicalWheel();
+        break;
     default:
         break;
     }

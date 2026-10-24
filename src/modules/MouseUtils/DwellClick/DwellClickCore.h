@@ -277,6 +277,16 @@ namespace dwellclick
             LockUntilMove();
         }
 
+        // Report that the user turned a physical wheel (either axis). Scrolling moves the content
+        // under a pointer that has not moved, so a countdown that started before the scroll would
+        // otherwise land its click on whatever scrolled into place. Like a physical click, this
+        // locks until the pointer moves away. It also ends a dwell scroll or zoom repeat: the user
+        // has taken over.
+        void OnPhysicalWheel()
+        {
+            LockUntilMove();
+        }
+
         // Report whether any mouse button is being held by something other than this module (the
         // user's own hand, or another assistive tool's injected press). While one is held the
         // machine stays locked whatever the pointer does: the user is dragging or selecting, and

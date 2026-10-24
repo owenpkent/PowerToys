@@ -179,7 +179,15 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size)
             }
             break;
         case 5:
-            engine.LockUntilMove();
+            // A settings-change lock, or (bit 3) a physical wheel turn.
+            if (op & 0x08u)
+            {
+                engine.OnPhysicalWheel();
+            }
+            else
+            {
+                engine.LockUntilMove();
+            }
             break;
         case 6:
             (void)engine.ReleaseDrag();

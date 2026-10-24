@@ -17,7 +17,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
-- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 43
+- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 45
   tests in [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp)
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
@@ -72,6 +72,8 @@ The machine **starts locked** and re-locks:
 
 - after every action that fires,
 - after a physical mouse click (the user clicked for themselves; do not stack a dwell click on top),
+- after a physical wheel turn (`OnPhysicalWheel`: the content scrolled under a resting pointer,
+  so a running countdown is no longer aimed at what the user chose),
 - when paused,
 - on any live settings change, via `LockUntilMove`,
 - on `ResetTransient`, so a pointer left resting across a disable/enable cycle cannot fire the
@@ -165,7 +167,8 @@ The engine stays defined for any input rather than trusting its caller:
 engine, following the Mouse Button Lock module closely:
 
 - **One dedicated thread** owns a `WH_MOUSE_LL` hook and a poll loop. The hook feeds the engine
-  `OnMove` for every pointer move and `OnPhysicalClick` for every physical button-down; the loop
+  `OnMove` for every pointer move, `OnPhysicalClick` for every physical button-down, and
+  `OnPhysicalWheel` for every wheel turn on either axis that the module did not inject; the loop
   wakes every 15 ms (`MsgWaitForMultipleObjects` timeout) to pump messages and call `Poll`, which
   is what advances a countdown while the pointer is at rest and no messages arrive.
 - **A button held by anything else suppresses dwelling for the whole hold.** The hook tracks
@@ -371,7 +374,7 @@ eight classes, using a recording fake injector and an explicit tick:
 - `ActionSelection` - action-to-click mapping, revert versus sticky, and locking on action change
 - `DragGesture` - the two-dwell lifecycle, release on reset, and a failed press not entering drag
   state
-- `PauseAndSuppression` - pause, resume, pause mid-drag, physical-click suppression, and the
+- `PauseAndSuppression` - pause, resume, pause mid-drag, physical-click and wheel suppression, and the
   live-settings-change lock
 - `InjectionFailure` - failures are reported, not retried per poll, and do not consume the action
 - `ScrollActions` - auto-repeat while resting, no revert, movement re-anchoring, and a failed
@@ -382,7 +385,7 @@ eight classes, using a recording fake injector and an explicit tick:
   next dwell finishes a pending release first, and an external button hold suppresses dwelling
   until it ends and the pointer moves
 
-(43 tests in nine classes in all.)
+(45 tests in nine classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 37 tests over the toolbar model in seven classes: layout and hit-testing, the configurable
