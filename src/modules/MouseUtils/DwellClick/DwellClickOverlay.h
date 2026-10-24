@@ -17,8 +17,9 @@
 // The module's on-screen surfaces, modeled on shipping dwell tools (Ease Mouse, OpenMouse):
 //
 //   - A countdown ring that follows the pointer and fills with PollResult.progress, so the
-//     user always sees when a click is about to land. The window is layered, topmost, and
-//     click-through: it can never receive input or steal focus.
+//     user always sees when a click is about to land. It appears only once a rest is
+//     unmistakable (ShowCountdownRing), so it does not trail a moving pointer. The window is
+//     layered, topmost, and click-through: it can never receive input or steal focus.
 //   - An action toolbar docked to a screen edge: a collapse handle, pause/resume, and a
 //     Settings-chosen set of action buttons (clicks, drag, scroll modes, open Settings). It
 //     accepts input (hover dwells and physical clicks) but never activates, and its

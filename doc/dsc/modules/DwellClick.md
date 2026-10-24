@@ -126,7 +126,9 @@ of the screen. The large menu closes after an action is chosen.
 ### ShowCountdown
 
 Controls whether the countdown ring is drawn at the pointer while a
-dwell is in progress.
+dwell is in progress. The ring appears a moment into the dwell (after a
+fifth of the dwell time, and at most 250 ms), so it does not follow a
+pointer that is still moving.
 
 **Type:** boolean  
 **Default:** `true`
