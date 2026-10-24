@@ -5,6 +5,7 @@
 #include "pch.h"
 #include "DwellClickCore.h"
 
+#include <limits>
 #include <vector>
 
 using namespace Microsoft::VisualStudio::CppUnitTestFramework;
@@ -982,6 +983,35 @@ namespace DwellClickEngineTests
             const PollResult r = e.Poll(101, s);
             Assert::IsTrue(r.fired);
             Assert::IsTrue(r.progress == 0.0);
+        }
+    };
+
+    TEST_CLASS (CountdownRing)
+    {
+    public:
+        TEST_METHOD (TheRingWaitsForAFifthOfAShortDwell)
+        {
+            // 1000 ms: a fifth is 200 ms, under the 250 ms cap, so the fifth applies.
+            Assert::IsFalse(ShowCountdownRing(0.19, 1000));
+            Assert::IsTrue(ShowCountdownRing(0.2, 1000));
+            Assert::IsTrue(ShowCountdownRing(0.99, 1000));
+        }
+
+        TEST_METHOD (ALongDwellShowsItsRingWithin250Ms)
+        {
+            // 5000 ms: a fifth would hide the ring for a whole second, so the cap applies.
+            Assert::IsFalse(ShowCountdownRing(0.049, 5000));
+            Assert::IsTrue(ShowCountdownRing(0.05, 5000));
+        }
+
+        TEST_METHOD (IdleAndDegenerateInputsStayDefined)
+        {
+            Assert::IsFalse(ShowCountdownRing(0.0, 1200));
+            Assert::IsFalse(ShowCountdownRing(-1.0, 1200));
+            Assert::IsFalse(ShowCountdownRing(std::numeric_limits<double>::quiet_NaN(), 1200));
+
+            // A 0 ms dwell is clamped to 1 ms rather than dividing by zero.
+            Assert::IsTrue(ShowCountdownRing(0.5, 0));
         }
     };
 }

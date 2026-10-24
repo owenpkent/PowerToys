@@ -137,6 +137,27 @@ namespace dwellclick
         PointL point{};
     };
 
+    // Whether the countdown ring should be on screen at this progress. Once the engine is armed,
+    // every brief pause in ordinary pointer movement starts a fresh countdown, so showing the
+    // ring from the first millisecond makes a nearly empty ring trail the moving cursor. The
+    // ring therefore waits until the rest is unmistakable: a fifth of the dwell, but never more
+    // than 250 ms, so a long dwell time still shows its ring promptly. The click itself is not
+    // delayed; only the feedback is.
+    constexpr double CountdownRingShowFraction = 0.2;
+    constexpr double CountdownRingShowMaxMs = 250.0;
+
+    constexpr bool ShowCountdownRing(double progress, int dwellTimeMs)
+    {
+        if (!(progress > 0.0))
+        {
+            return false;
+        }
+        const double dwellMs = dwellTimeMs < 1 ? 1.0 : static_cast<double>(dwellTimeMs);
+        const double capFraction = CountdownRingShowMaxMs / dwellMs;
+        const double threshold = capFraction < CountdownRingShowFraction ? capFraction : CountdownRingShowFraction;
+        return progress >= threshold;
+    }
+
     class Engine
     {
     public:

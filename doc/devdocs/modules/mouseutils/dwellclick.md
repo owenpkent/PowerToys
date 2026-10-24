@@ -17,7 +17,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
-- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 50
+- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 53
   tests in [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp)
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
@@ -276,7 +276,10 @@ pointer-attached countdown with an on-screen action menu:
 - **The countdown ring** follows the pointer and fills with `PollResult.progress`, so the user
   always sees when a click is about to land. Its window is layered, topmost, and click-through;
   it can never take input or focus. It hides whenever the machine is locked, paused, or the
-  pointer is over the toolbar (progress is 0 in all three).
+  pointer is over the toolbar (progress is 0 in all three). It also stays hidden for the first
+  fifth of a countdown, capped at 250 ms (`ShowCountdownRing` in DwellClickCore.h): once the
+  engine is armed, every brief pause in ordinary movement starts a countdown, and a ring shown
+  from the first poll trailed the moving cursor. Only the feedback waits; the click does not.
 - **The action toolbar** docks to any screen edge: a collapse handle, pause/resume, and a
   Settings-chosen set of buttons. The action buttons choose the next dwell action (left, double,
   right, middle, drag, scroll up/down/left/right, zoom in/out). The system buttons act at once
@@ -393,8 +396,10 @@ eight classes, using a recording fake injector and an explicit tick:
 - `RepeatInterval` - the first notch waits the dwell time and later notches the repeat interval,
   movement and locks go back to the full dwell, clicks ignore the interval, and a 0 ms interval
   clamps
+- `CountdownRing` - the ring waits for a fifth of a short dwell, at most 250 ms of a long one,
+  and stays hidden for idle or degenerate input
 
-(50 tests in ten classes in all.)
+(53 tests in eleven classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 37 tests over the toolbar model in seven classes: layout and hit-testing, the configurable

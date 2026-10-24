@@ -969,7 +969,7 @@ void DwellClick::HookThreadMain()
         if (overlayCreated)
         {
             // Injection failures are logged by the injector; progress drives the ring.
-            m_overlay.UpdateIndicator(cursor, result.progress, !overToolbar);
+            m_overlay.UpdateIndicator(cursor, result.progress, snapshot.dwellTimeMs, !overToolbar);
             m_overlay.SetToolbarState({ m_engine.NextAction(), m_engine.IsPaused(), m_engine.IsDragging() });
         }
 
