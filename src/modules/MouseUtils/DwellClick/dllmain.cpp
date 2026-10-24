@@ -122,7 +122,7 @@ namespace
     // reaches a low-level hook, and some assistive software steers the pointer with it, so the
     // toolbar still has to see such a pointer leave a button to re-arm it: this interval bounds
     // how long a SetCursorPos move can go unseen, and any cursor change it does see switches
-    // back to the fast cadence. About 10 wakeups a second instead of 66.
+    // back to the fast cadence. About 10 wake-ups a second instead of 66.
     constexpr DWORD IDLE_POLL_INTERVAL_MS = 100;
 
     // Default values mirror the engine's Settings defaults (see DwellClickCore.h for their
@@ -1116,7 +1116,7 @@ void DwellClick::HookThreadMain()
 
         // Poll fast only while time alone can change something: a countdown (including a
         // repeating scroll), the toolbar under the pointer, anything the overlay is animating,
-        // or a pointer that just moved. Otherwise only input, a settings change, or a hotkey
+        // or a pointer that just moved. Otherwise, only input, a settings change, or a hotkey
         // can, and each of those wakes the wait itself; the idle interval covers pointer moves
         // made with SetCursorPos and the stale-hold check.
         const bool cursorMoved = cursor.x != m_lastPolledCursor.x || cursor.y != m_lastPolledCursor.y;
