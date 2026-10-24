@@ -16,6 +16,7 @@
 #include "DwellClickCore.h"
 #include "DwellClickInput.h"
 #include "DwellClickOverlay.h"
+#include "DwellClickSettingsChange.h"
 
 #include <atomic>
 #include <algorithm>
@@ -424,9 +425,9 @@ private:
     std::atomic<bool> m_toolbarButtonNotifications{ false };
 
     // The engine is not thread-safe, so set_config (runner thread) never touches it directly.
-    // It raises this flag instead, and the hook thread's poll loop consumes it and applies the
-    // engine's settings-change rule (lock until the pointer moves) within one poll interval.
-    std::atomic<bool> m_relockRequested{ false };
+    // It publishes the new values through this signal instead, and the hook thread's poll loop
+    // consumes it and applies the change (see DwellClickSettingsChange.h for the ordering).
+    dwellclick::SettingsChangeSignal m_settingsChange;
 
     // The hotkeys fire on the runner thread, so like the re-lock they only raise a flag; the
     // hook thread's poll loop consumes it and makes the engine call.
@@ -554,18 +555,10 @@ public:
             PowerToysSettings::PowerToyValues values =
                 PowerToysSettings::PowerToyValues::from_json_string(config, get_key());
 
-            // Any live settings change must lock the machine until the pointer moves:
-            // shortening the dwell time against an already-running countdown would otherwise
-            // fire the moment the new value lands. The hook thread applies it (see the flag).
-            //
-            // Raised BEFORE the values are published: the hook thread reads its settings
-            // snapshot first and consumes the flag after, so if it sees any new value it also
-            // sees the flag, and locks before polling with that value. Raised again AFTER, so a
-            // later pass sees the complete set (the default action is applied from it); the
-            // extra lock is harmless, the pointer is in the Settings window anyway.
-            m_relockRequested.store(true);
-            parse_settings(values);
-            m_relockRequested.store(true);
+            // Any live settings change must lock the machine until the pointer moves, or a
+            // dwell time shortened mid-countdown would fire at once. The signal's ordering
+            // guarantees the hook thread locks before it polls with any new value.
+            m_settingsChange.PublishChange([&] { parse_settings(values); });
             WakeHookThread();
         }
         catch (...)
@@ -970,26 +963,13 @@ void DwellClick::HookThreadMain()
             DispatchMessage(&msg);
         }
 
-        // The snapshot is read BEFORE the re-lock flag is consumed (set_config raises the flag
-        // before publishing values), so a snapshot holding any new value is always followed by
-        // the lock that value requires, before Poll can run against it.
+        // The snapshot is read BEFORE the change is consumed, so a snapshot holding any new
+        // value is always followed by the lock that value requires, before Poll can run against
+        // it (see SettingsChangeSignal).
         const dwellclick::Settings snapshot = SettingsSnapshot();
-        if (m_relockRequested.exchange(false))
+        if (m_settingsChange.Consume())
         {
-            m_engine.LockUntilMove();
-
-            // A changed default takes effect on the next dwell, the way choosing it on the
-            // toolbar would. Release a drag in progress first so the switch never orphans the
-            // held button.
-            if (snapshot.defaultAction != m_appliedDefaultAction)
-            {
-                m_appliedDefaultAction = snapshot.defaultAction;
-                if (m_engine.IsDragging())
-                {
-                    m_engine.ReleaseDrag();
-                }
-                m_engine.SetNextAction(snapshot.defaultAction);
-            }
+            dwellclick::ApplySettingsChange(m_engine, snapshot, m_appliedDefaultAction);
         }
 
         // A button held by the user (or another tool) whose release the hook never saw, say

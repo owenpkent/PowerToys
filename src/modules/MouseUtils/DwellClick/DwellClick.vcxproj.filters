@@ -50,6 +50,9 @@
     <ClInclude Include="DwellClickInput.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DwellClickSettingsChange.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DwellClick.rc">

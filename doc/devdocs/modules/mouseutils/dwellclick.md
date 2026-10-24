@@ -24,6 +24,9 @@ events and a monotonic tick, and performs the injections the engine asks for.
 - [DwellClickInput.h](/src/modules/MouseUtils/DwellClick/DwellClickInput.h) - what each action
   and keystroke button sends to Windows, as data, with 18 tests in
   [InputTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/InputTests.cpp)
+- [DwellClickSettingsChange.h](/src/modules/MouseUtils/DwellClick/DwellClickSettingsChange.h) -
+  how a live settings change crosses from the runner thread to the engine, with 6 tests in
+  [SettingsChangeTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/SettingsChangeTests.cpp)
 - [DwellClickToolbar.h](/src/modules/MouseUtils/DwellClick/DwellClickToolbar.h) - the toolbar's
   Win32-free state machine and layout, with 38 tests in
   [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp)
@@ -227,16 +230,19 @@ engine, following the Mouse Button Lock module closely:
 - **The engine stays single-threaded.** All engine calls happen on the hook thread while it runs.
   The runner thread touches the engine only before the thread starts (`enable` seeds the pointer
   position, calls `ResetTransient`, and sets the next action to the configured default) or after
-  it joins (`disable`). A live settings change (`set_config`) raises an atomic flag that the poll
-  loop consumes into `LockUntilMove`. The ordering matters: `set_config` raises the flag before
-  publishing the new values (and again after), and the loop reads its settings snapshot before
-  consuming the flag, so a snapshot holding any new value is always followed by the lock that
-  value requires before `Poll` runs. Otherwise, a dwell time shortened mid-countdown could fire
-  at once.
-- **A changed default action applies on the next dwell.** On that same re-lock path the poll loop
-  compares the configured default with the one it last applied (`m_appliedDefaultAction`). Only
-  when it differs does it release a held drag and call `SetNextAction`, so an unrelated change
-  (the dwell time, say) never discards an action that the user picked on the toolbar.
+  it joins (`disable`). A live settings change (`set_config`) goes through
+  `SettingsChangeSignal::PublishChange`, and the poll loop consumes it into
+  `ApplySettingsChange` (both in DwellClickSettingsChange.h), which calls `LockUntilMove`. The
+  ordering matters: the flag is raised before the new values are published (and again after),
+  and the loop reads its settings snapshot before consuming it, so a snapshot holding any new
+  value is always followed by the lock that value requires before `Poll` runs. Otherwise, a
+  dwell time shortened mid-countdown could fire at once. SettingsChangeTests.cpp runs a
+  poll-loop pass in the middle of a publish to pin this.
+- **A changed default action applies on the next dwell.** On that same path `ApplySettingsChange`
+  compares the configured default with the one last applied (the module's
+  `m_appliedDefaultAction`). Only when it differs does it release a held drag and call
+  `SetNextAction`, so an unrelated change (the dwell time, say) never discards an action that the
+  user picked on the toolbar.
 - **Settings are clamped on read.** The dwell time is clamped to 100 ms - 60 s (below 100 ms every
   rest becomes a click, the exact Midas failure the engine is built to avoid), tolerances to
   0 - 10000 px, and an unknown `default_action` value falls back to `LeftClick` rather than
@@ -465,6 +471,15 @@ commands choose none),
 and the review regressions: the leave-to-rearm block surviving a layout change without trapping a
 moved handle, a button that appears under a resting pointer (`BlockAt`), and `FitGrid` for
 roomy, short, small high-DPI, and impossible areas.
+
+[SettingsChangeTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/SettingsChangeTests.cpp)
+has 6 tests in two classes over the settings-change protocol, driving the real
+`SettingsChangeSignal` and `ApplySettingsChange` with a model of the module's published atomics:
+a poll-loop pass run in the middle of a publish, after the values land, always sees the flag
+and locks before it polls (so banked time cannot fire under a shortened dwell); a pass that
+consumed the opening raise before the values landed is followed by one with the complete set; a
+changed default releases a held drag and becomes the next action; and an unrelated change keeps
+an action picked on the toolbar.
 
 [InputTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/InputTests.cpp) has 18 tests in
 two classes that pin what each action actually sends to Windows, from
