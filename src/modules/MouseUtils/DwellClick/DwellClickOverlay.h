@@ -222,6 +222,11 @@ namespace dwellclick
         ToolbarVisualState m_state;
         ULONG_PTR m_gdiplusToken = 0;
         RECT m_toolbarRect{};
+
+        // The primary work area the toolbar was last laid out for, and when it was last
+        // compared against the live one (see TickToolbar).
+        RECT m_layoutWorkArea{};
+        uint64_t m_lastWorkAreaCheckTick = 0;
         bool m_buttonsInitialized = false;
         bool m_indicatorVisible = false;
         COLORREF m_accentColor = RGB(0x00, 0x78, 0xD4); // Windows accent, refreshed when a countdown starts

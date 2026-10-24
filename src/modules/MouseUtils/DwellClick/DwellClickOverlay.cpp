@@ -57,6 +57,9 @@ namespace
     // How long a shortcut's feedback stays at the pointer.
     constexpr uint64_t FLASH_DURATION_MS = 1200;
 
+    // How often the toolbar double-checks that the work area it was laid out for is current.
+    constexpr uint64_t WORK_AREA_CHECK_MS = 1000;
+
     constexpr int ClampSizeIndex(int index)
     {
         return index < 0 ? 0 : (index > 2 ? 2 : index);
@@ -546,6 +549,19 @@ namespace dwellclick
             return;
         }
 
+        // Backstop for the WM_DISPLAYCHANGE and SPI_SETWORKAREA broadcasts (see
+        // HandleToolbarMessage): once a second, re-lay out if the primary work area moved
+        // without one, so the toolbar can never be stranded off screen.
+        if (tick - m_lastWorkAreaCheckTick >= WORK_AREA_CHECK_MS)
+        {
+            m_lastWorkAreaCheckTick = tick;
+            MONITORINFO monitor{ sizeof(monitor) };
+            if (GetMonitorInfoW(MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY), &monitor) && !EqualRect(&monitor.rcWork, &m_layoutWorkArea))
+            {
+                LayoutToolbar();
+            }
+        }
+
         const double scale = Scale();
         const bool inside = PtInRect(&m_toolbarRect, screenPt) != FALSE;
         const PointL local{
@@ -614,6 +630,7 @@ namespace dwellclick
         // The primary monitor's work area, so the toolbar never sits under the taskbar.
         MONITORINFO monitor{ sizeof(monitor) };
         GetMonitorInfoW(MonitorFromPoint({ 0, 0 }, MONITOR_DEFAULTTOPRIMARY), &monitor);
+        m_layoutWorkArea = monitor.rcWork;
         if (IsMenuOpen())
         {
             LayoutMenu(monitor.rcWork, scale);
@@ -1052,6 +1069,19 @@ namespace dwellclick
         case WM_DPICHANGED:
             LayoutToolbar();
             return 0;
+        case WM_DISPLAYCHANGE:
+            // A resolution change, a monitor added or removed, or a new primary monitor: the
+            // old position may now be off screen, and someone who cannot click has no other way
+            // to bring the toolbar back.
+            LayoutToolbar();
+            return 0;
+        case WM_SETTINGCHANGE:
+            if (wParam == SPI_SETWORKAREA)
+            {
+                // The taskbar moved, resized, or changed its auto-hide setting.
+                LayoutToolbar();
+            }
+            return DefWindowProcW(hwnd, msg, wParam, lParam);
         default:
             return DefWindowProcW(hwnd, msg, wParam, lParam);
         }
