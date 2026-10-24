@@ -292,6 +292,9 @@ pointer-attached countdown with an on-screen action menu:
   drag is then visible where the user is looking, not only on the toolbar at the screen edge.
   The badge and the toolbar share one glyph painter (`DrawCommandGlyph`), and
   `SelectCommandFor` maps an action back to the toolbar command that draws it.
+- The ring and badge scale for the monitor under the pointer (`Overlay::ScaleAt`, from
+  `GetDpiForMonitor`), not the primary monitor's DPI the toolbar uses, so they keep their size
+  when the pointer crosses onto a monitor with a different scale.
 - **The action toolbar** docks to any screen edge: a collapse handle, pause/resume, and a
   Settings-chosen set of buttons. The action buttons choose the next dwell action (left, double,
   right, middle, drag, scroll up/down/left/right, zoom in/out). The system buttons act at once
