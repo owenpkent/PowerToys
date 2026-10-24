@@ -179,6 +179,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             DwellClickSettingsConfig.Properties.DwellTimeMs ??= new IntProperty(1200);
             DwellClickSettingsConfig.Properties.MoveTolerancePixels ??= new IntProperty(10);
             DwellClickSettingsConfig.Properties.PostActionTolerancePixels ??= new IntProperty(10);
+            DwellClickSettingsConfig.Properties.RepeatIntervalMs ??= new IntProperty(400);
             DwellClickSettingsConfig.Properties.DefaultAction ??= new IntProperty(0);
             DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction ??= new BoolProperty(true);
             DwellClickSettingsConfig.Properties.ShowToolbar ??= new BoolProperty(true);
@@ -211,6 +212,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             _dwellClickDwellTimeMs = DwellClickSettingsConfig.Properties.DwellTimeMs.Value;
             _dwellClickMoveTolerancePixels = DwellClickSettingsConfig.Properties.MoveTolerancePixels.Value;
             _dwellClickPostActionTolerancePixels = DwellClickSettingsConfig.Properties.PostActionTolerancePixels.Value;
+            _dwellClickRepeatIntervalMs = DwellClickSettingsConfig.Properties.RepeatIntervalMs.Value;
             _dwellClickDefaultAction = DwellClickSettingsConfig.Properties.DefaultAction.Value;
             _dwellClickRevertToDefaultAfterAction = DwellClickSettingsConfig.Properties.RevertToDefaultAfterAction.Value;
             _dwellClickShowToolbar = DwellClickSettingsConfig.Properties.ShowToolbar.Value;
@@ -1766,6 +1768,20 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
             }
         }
 
+        public int DwellClickRepeatIntervalMs
+        {
+            get => _dwellClickRepeatIntervalMs;
+            set
+            {
+                if (value != _dwellClickRepeatIntervalMs)
+                {
+                    _dwellClickRepeatIntervalMs = value;
+                    DwellClickSettingsConfig.Properties.RepeatIntervalMs.Value = value;
+                    NotifyDwellClickPropertyChanged();
+                }
+            }
+        }
+
         public int DwellClickPostActionTolerancePixels
         {
             get => _dwellClickPostActionTolerancePixels;
@@ -2293,6 +2309,7 @@ namespace Microsoft.PowerToys.Settings.UI.ViewModels
         private int _dwellClickDwellTimeMs;
         private int _dwellClickMoveTolerancePixels;
         private int _dwellClickPostActionTolerancePixels;
+        private int _dwellClickRepeatIntervalMs;
         private int _dwellClickDefaultAction; // matches dwellclick::DwellAction: 0=Left, 1=Right, 2=Double, 3=Middle, 4=Drag
         private bool _dwellClickRevertToDefaultAfterAction;
         private bool _dwellClickShowToolbar;

@@ -70,6 +70,7 @@ namespace
     const wchar_t JSON_KEY_DWELL_TIME_MS[] = L"dwell_time_ms";
     const wchar_t JSON_KEY_MOVE_TOLERANCE_PIXELS[] = L"move_tolerance_pixels";
     const wchar_t JSON_KEY_POST_ACTION_TOLERANCE_PIXELS[] = L"post_action_tolerance_pixels";
+    const wchar_t JSON_KEY_REPEAT_INTERVAL_MS[] = L"repeat_interval_ms";
     const wchar_t JSON_KEY_DEFAULT_ACTION[] = L"default_action";
     const wchar_t JSON_KEY_REVERT_TO_DEFAULT_AFTER_ACTION[] = L"revert_to_default_after_action";
     const wchar_t JSON_KEY_SHOW_TOOLBAR[] = L"show_toolbar";
@@ -117,6 +118,7 @@ namespace
     // provenance); the eventual C# DwellClickProperties must match both.
     constexpr int DEFAULT_DWELL_TIME_MS = 1200;
     constexpr int DEFAULT_TOLERANCE_PIXELS = 10;
+    constexpr int DEFAULT_REPEAT_INTERVAL_MS = 400;
 
     // Accepted ranges when reading from settings.json. The Settings UI will constrain these,
     // but a hand-edited file could carry out-of-range or non-finite values, so clamp on read.
@@ -125,6 +127,11 @@ namespace
     constexpr int MIN_DWELL_TIME_MS = 100;
     constexpr int MAX_DWELL_TIME_MS = 60000;
     constexpr int MAX_TOLERANCE_PIXELS = 10000;
+
+    // A scroll or zoom repeat faster than 50 ms outruns most apps' wheel handling; the first
+    // notch of a repeat always waits the full dwell time, so this bound never makes a rest fire.
+    constexpr int MIN_REPEAT_INTERVAL_MS = 50;
+    constexpr int MAX_REPEAT_INTERVAL_MS = 60000;
 
     // Ring color default; matches the PowerToys brand blue the overlay palette uses.
     constexpr COLORREF DEFAULT_INDICATOR_COLOR = RGB(0x00, 0x78, 0xD4);
@@ -321,6 +328,7 @@ private:
     std::atomic<int> m_dwellTimeMs{ DEFAULT_DWELL_TIME_MS };
     std::atomic<int> m_moveTolerancePixels{ DEFAULT_TOLERANCE_PIXELS };
     std::atomic<int> m_postActionTolerancePixels{ DEFAULT_TOLERANCE_PIXELS };
+    std::atomic<int> m_repeatIntervalMs{ DEFAULT_REPEAT_INTERVAL_MS };
     std::atomic<int> m_defaultAction{ static_cast<int>(dwellclick::DwellAction::LeftClick) };
     std::atomic<bool> m_revertToDefaultAfterAction{ true };
     std::atomic<bool> m_showToolbar{ true };
@@ -680,6 +688,7 @@ void DwellClick::parse_settings(PowerToysSettings::PowerToyValues& settings)
     readInt(JSON_KEY_DWELL_TIME_MS, m_dwellTimeMs, MIN_DWELL_TIME_MS, MAX_DWELL_TIME_MS);
     readInt(JSON_KEY_MOVE_TOLERANCE_PIXELS, m_moveTolerancePixels, 0, MAX_TOLERANCE_PIXELS);
     readInt(JSON_KEY_POST_ACTION_TOLERANCE_PIXELS, m_postActionTolerancePixels, 0, MAX_TOLERANCE_PIXELS);
+    readInt(JSON_KEY_REPEAT_INTERVAL_MS, m_repeatIntervalMs, MIN_REPEAT_INTERVAL_MS, MAX_REPEAT_INTERVAL_MS);
     readBool(JSON_KEY_REVERT_TO_DEFAULT_AFTER_ACTION, m_revertToDefaultAfterAction);
     readBool(JSON_KEY_SHOW_TOOLBAR, m_showToolbar);
     readInt(JSON_KEY_TOOLBAR_SIDE, m_toolbarSide, 0, 3);
@@ -793,6 +802,7 @@ dwellclick::Settings DwellClick::SettingsSnapshot() const
     s.dwellTimeMs = m_dwellTimeMs.load();
     s.moveTolerancePixels = m_moveTolerancePixels.load();
     s.postActionTolerancePixels = m_postActionTolerancePixels.load();
+    s.repeatIntervalMs = m_repeatIntervalMs.load();
     s.defaultAction = static_cast<dwellclick::DwellAction>(m_defaultAction.load());
     s.revertToDefaultAfterAction = m_revertToDefaultAfterAction.load();
     return s;

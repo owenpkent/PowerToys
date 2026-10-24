@@ -33,8 +33,8 @@ namespace dwellclick
     // how every surveyed dwell product expresses click-and-drag without a held physical button.
     // The scroll and zoom actions turn a dwell into one wheel notch at the rest point (zoom is
     // Ctrl plus the wheel, which zooms in browsers, Office, Explorer, and most viewers). They
-    // are the action family that AUTO-REPEATS (another notch per dwell period while the pointer
-    // keeps resting) and never reverts to the default action, because a single notch that snaps
+    // are the action family that AUTO-REPEATS (another notch each repeat interval while the
+    // pointer keeps resting) and never reverts to the default action, because a single notch that snaps
     // back to clicking would make scrolling or zooming useless. Selecting another action is the
     // exit.
     //
@@ -101,6 +101,13 @@ namespace dwellclick
         // from moveTolerancePixels so it can be widened independently: this is the setting that
         // stops a resting hand from firing a second click on the same spot.
         int postActionTolerancePixels = 10;
+
+        // How often a scroll or zoom repeats once its first notch has landed. The first notch
+        // still waits the full dwell time (that is the deliberate "yes, scroll here"); the rest
+        // follow at this faster cadence for as long as the pointer keeps resting, because one
+        // notch per dwell time (three lines every 1.2 s at the defaults) is too slow to read a
+        // page by. Movement re-anchors and goes back to the full dwell time.
+        int repeatIntervalMs = 400;
 
         // The action a dwell fires when the user has not chosen another one.
         DwellAction defaultAction = DwellAction::LeftClick;
@@ -175,6 +182,7 @@ namespace dwellclick
             {
                 m_anchor = pt;
                 m_restStartTick = tick;
+                m_repeating = false;
             }
         }
 
@@ -193,7 +201,9 @@ namespace dwellclick
 
             // A dwell time of 0 would divide by zero, and a negative one is meaningless. Clamp to
             // 1 ms so progress stays finite and such a setting simply fires on the next poll.
-            const int dwellMs = s.dwellTimeMs < 1 ? 1 : s.dwellTimeMs;
+            // A repeat already under way waits the repeat interval instead, clamped the same way.
+            const int periodMs = m_repeating ? s.repeatIntervalMs : s.dwellTimeMs;
+            const int dwellMs = periodMs < 1 ? 1 : periodMs;
 
             // The tick is monotonic in production, but a caller (or the fuzz target) can hand back
             // a tick older than the anchor. Treating that as 0 elapsed keeps the countdown honest;
@@ -215,9 +225,11 @@ namespace dwellclick
             if (result.fired && IsRepeatingAction(m_firedAction))
             {
                 // Scrolling and zooming auto-repeat: restart the countdown at the same anchor so
-                // another notch lands each dwell period for as long as the pointer keeps resting.
-                // Movement re-anchors as usual, and pause or the toolbar stops it.
+                // another notch lands each repeat interval for as long as the pointer keeps
+                // resting. Movement re-anchors (back to the full dwell time), and pause or the
+                // toolbar stops it.
                 m_restStartTick = tick;
+                m_repeating = true;
             }
             else
             {
@@ -315,6 +327,7 @@ namespace dwellclick
         {
             m_locked = true;
             m_lockedAfterAction = false;
+            m_repeating = false;
             m_anchor = m_current;
         }
 
@@ -348,6 +361,7 @@ namespace dwellclick
             ReleaseDrag();
             m_locked = true;
             m_lockedAfterAction = false;
+            m_repeating = false;
             m_anchor = m_current;
             m_restStartTick = tick;
         }
@@ -379,12 +393,14 @@ namespace dwellclick
             m_restStartTick = tick;
             m_locked = false;
             m_lockedAfterAction = false;
+            m_repeating = false;
         }
 
         void LockAfterAction()
         {
             m_locked = true;
             m_lockedAfterAction = true;
+            m_repeating = false;
             m_anchor = m_current;
         }
 
@@ -514,6 +530,10 @@ namespace dwellclick
         bool m_paused = false;
         bool m_dragging = false;
         bool m_externalHold = false;
+
+        // A scroll or zoom notch has landed at the current anchor, so the next one waits the
+        // repeat interval rather than the full dwell time. Any lock or re-anchor clears it.
+        bool m_repeating = false;
 
         DwellAction m_nextAction = DwellAction::LeftClick;
         DwellAction m_firedAction = DwellAction::LeftClick;

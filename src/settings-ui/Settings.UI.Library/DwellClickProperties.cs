@@ -30,6 +30,9 @@ namespace Microsoft.PowerToys.Settings.UI.Library
         [JsonPropertyName("post_action_tolerance_pixels")]
         public IntProperty PostActionTolerancePixels { get; set; }
 
+        [JsonPropertyName("repeat_interval_ms")]
+        public IntProperty RepeatIntervalMs { get; set; }
+
         [JsonPropertyName("default_action")]
         public IntProperty DefaultAction { get; set; }
 
@@ -123,6 +126,7 @@ namespace Microsoft.PowerToys.Settings.UI.Library
             DwellTimeMs = new IntProperty(1200);
             MoveTolerancePixels = new IntProperty(10);
             PostActionTolerancePixels = new IntProperty(10);
+            RepeatIntervalMs = new IntProperty(400); // scroll and zoom repeat; the first notch waits the dwell time
             DefaultAction = new IntProperty(0); // 0 = left click; matches dwellclick::DwellAction
             RevertToDefaultAfterAction = new BoolProperty(true);
             ShowToolbar = new BoolProperty(true);

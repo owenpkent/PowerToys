@@ -53,6 +53,17 @@ pointer from clicking the same spot repeatedly.
 **Type:** integer  
 **Default:** `10`
 
+### RepeatIntervalMs
+
+Sets how often a scroll or zoom repeats, in milliseconds, once its first
+step has landed. The first step always waits the full dwell time; moving
+the pointer to a new spot waits the full dwell time again.
+
+**Type:** integer  
+**Range:** `50` to `60000` (the Settings UI slider covers `100` to
+`2000`; a hand-edited value is clamped to the full range)  
+**Default:** `400`
+
 ### DefaultAction
 
 Sets the action a dwell performs when no other action has been chosen.

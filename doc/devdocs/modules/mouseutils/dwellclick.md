@@ -17,7 +17,7 @@ events and a monotonic tick, and performs the injections the engine asks for.
 
 ### Key Files
 
-- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 45
+- [DwellClickCore.h](/src/modules/MouseUtils/DwellClick/DwellClickCore.h) - the engine, with 50
   tests in [EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp)
 - [dllmain.cpp](/src/modules/MouseUtils/DwellClick/dllmain.cpp) - the module DLL
   (`PowertoyModuleIface` plus the Win32 adapter)
@@ -111,11 +111,15 @@ Horizontal scroll is one `MOUSEEVENTF_HWHEEL` notch; zoom is Ctrl plus one wheel
 and released in the same `SendInput` batch so Ctrl is never left down.
 
 **Scroll and zoom are modes, not one-shots** (`IsRepeatingAction`). A scroll dwell injects one wheel notch at the rest point,
-then restarts its own countdown instead of locking: another notch lands each dwell period for as
-long as the pointer keeps resting, and the action never reverts to the default (a single notch
+then restarts its own countdown instead of locking: another notch lands each repeat interval
+(`repeatIntervalMs`, 400 ms by default) for as long as the pointer keeps resting, and the action
+never reverts to the default (a single notch
 snapping back to clicking would make scrolling useless). Movement re-anchors as usual, and a
 failed injection still locks rather than retrying. Selecting another action is the exit; this is
-the "scroll lock" behavior of the surveyed dwell products. Scroll cannot be the persisted default
+the "scroll lock" behavior of the surveyed dwell products. Only the first notch at a rest point
+waits the full dwell time, because that one is the decision; one notch per dwell time (three lines
+every 1.2 s at the defaults) was too slow to read a page by. Moving to a new spot, or any lock,
+goes back to the full dwell time. Scroll cannot be the persisted default
 action (the module clamps `default_action` to the click actions); it is entered from the toolbar.
 
 **Drag is two dwells**, which is how every surveyed dwell product expresses click-and-drag without a
@@ -224,6 +228,7 @@ the installation verification script, the bug report tool's GPO dump, and teleme
 
 The module lives on the Mouse Utilities settings page (`MouseUtilsPage.xaml`) with a toggle, a
 dwell-time slider (200 ms to 5 s; the module clamps hand-edited values to 100 ms - 60 s), a
+scroll and zoom repeat slider (100 ms to 2 s; clamped to 50 ms - 60 s), a
 default-action dropdown (left, right, double, middle, drag), a revert-to-default checkbox,
 number boxes for the two tolerances (0 - 100 px), and the overlay options: action toolbar on/off,
 toolbar side (left, right, top, or bottom edge), toolbar style (docked bar or floating button
@@ -341,6 +346,7 @@ The toolbar docks to the primary monitor.
 | `dwellTimeMs` | 1200 | The GNOME Hover Click `dwell-time` default, the closest mouse-driven analogue. Eye-gaze research optima cluster nearer 600 ms, but assume a tracker rather than a hand on a mouse. macOS defaults to 3 s. |
 | `moveTolerancePixels` | 10 | The GNOME `dwell-threshold` default. |
 | `postActionTolerancePixels` | 10 | No published default found; starts equal to the move tolerance and is intended to be widened independently. |
+| `repeatIntervalMs` | 400 | About 7 lines a second at the usual 3 lines per notch: fast enough to read a page by, slow enough to stop on the line you want. |
 | `defaultAction` | `LeftClick` | Universal across surveyed products. |
 | `revertToDefaultAfterAction` | `true` | GNOME Hover Click and Dwell Clicker 2 behavior. |
 
@@ -384,8 +390,11 @@ eight classes, using a recording fake injector and an explicit tick:
 - `ReviewRegressions` - a rejected cleanup release keeps the drag until a retry succeeds, the
   next dwell finishes a pending release first, and an external button hold suppresses dwelling
   until it ends and the pointer moves
+- `RepeatInterval` - the first notch waits the dwell time and the rest the repeat interval,
+  movement and locks go back to the full dwell, clicks ignore the interval, and a 0 ms interval
+  clamps
 
-(45 tests in nine classes in all.)
+(50 tests in ten classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 37 tests over the toolbar model in seven classes: layout and hit-testing, the configurable

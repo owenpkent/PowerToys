@@ -24,6 +24,9 @@ public class DwellClickActionTests : UITestBase
     // Short enough to keep the suite quick, long enough that a stepped move never completes a
     // dwell partway through.
     private const int DwellMs = 500;
+
+    // Faster than the dwell, like the shipping default, so the repeat tests see both cadences.
+    private const int RepeatMs = 250;
     private const int SlackMs = 400;
 
     // Medium overlay size: 56 px buttons, 4 px padding and gap (DwellClickToolbar.h).
@@ -463,9 +466,10 @@ public class DwellClickActionTests : UITestBase
         var point = StartRecorderAndSelect(button);
         RestAt(point);
 
-        // Scroll and zoom repeat one notch per dwell period while the pointer keeps resting.
-        Thread.Sleep((DwellMs * 2) + SlackMs);
-        WaitFor(() => recorder!.Count(message) >= 2, $"at least two notches from {button}");
+        // Scroll and zoom land a first notch after the dwell time, then another each repeat
+        // interval while the pointer keeps resting.
+        Thread.Sleep(DwellMs + (RepeatMs * 2) + SlackMs);
+        WaitFor(() => recorder!.Count(message) >= 3, $"at least three notches from {button}");
 
         foreach (var notch in recorder!.All(message))
         {
@@ -667,6 +671,7 @@ public class DwellClickActionTests : UITestBase
             "dwell_time_ms": { "value": {{DwellMs}} },
             "move_tolerance_pixels": { "value": 10 },
             "post_action_tolerance_pixels": { "value": 10 },
+            "repeat_interval_ms": { "value": {{RepeatMs}} },
             "default_action": { "value": 0 },
             "revert_to_default_after_action": { "value": false },
             "show_toolbar": { "value": true },

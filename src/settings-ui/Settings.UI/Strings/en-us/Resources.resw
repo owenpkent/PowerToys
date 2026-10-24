@@ -2924,6 +2924,13 @@ From there, simply click on one of the supported files in the File Explorer and 
   <data name="MouseUtils_DwellClick_DwellTime.Description" xml:space="preserve">
     <value>How long the pointer must rest before the action fires</value>
   </data>
+  <data name="MouseUtils_DwellClick_RepeatInterval.Header" xml:space="preserve">
+    <value>Scroll and zoom repeat (ms)</value>
+    <comment>ms is the abbreviation for milliseconds.</comment>
+  </data>
+  <data name="MouseUtils_DwellClick_RepeatInterval.Description" xml:space="preserve">
+    <value>Once scrolling or zooming starts, how often another step follows while the pointer keeps resting. The first step always waits the dwell time.</value>
+  </data>
   <data name="MouseUtils_DwellClick_DefaultAction.Header" xml:space="preserve">
     <value>Default action</value>
   </data>

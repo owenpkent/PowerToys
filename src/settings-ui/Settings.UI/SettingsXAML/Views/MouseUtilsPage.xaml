@@ -182,6 +182,28 @@
                                         Value="{x:Bind ViewModel.DwellClickDwellTimeMs, Mode=TwoWay}" />
                                 </StackPanel>
                             </tkcontrols:SettingsCard>
+                            <tkcontrols:SettingsCard Name="MouseUtilsDwellClickRepeatInterval" x:Uid="MouseUtils_DwellClick_RepeatInterval">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <TextBlock
+                                        MinWidth="56"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.AutomationId="MouseUtils_DwellClickRepeatIntervalLabelId"
+                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                        Text="{x:Bind ViewModel.DwellClickRepeatIntervalMs, Mode=OneWay, Converter={StaticResource MillisecondsLabelConverter}}"
+                                        TextAlignment="Right" />
+                                    <Slider
+                                        MinWidth="{StaticResource SettingActionControlMinWidth}"
+                                        AutomationProperties.AutomationId="MouseUtils_DwellClickRepeatIntervalId"
+                                        LargeChange="200"
+                                        Maximum="2000"
+                                        Minimum="100"
+                                        SmallChange="50"
+                                        SnapsTo="StepValues"
+                                        StepFrequency="50"
+                                        ThumbToolTipValueConverter="{StaticResource MillisecondsLabelConverter}"
+                                        Value="{x:Bind ViewModel.DwellClickRepeatIntervalMs, Mode=TwoWay}" />
+                                </StackPanel>
+                            </tkcontrols:SettingsCard>
                             <tkcontrols:SettingsCard Name="MouseUtilsDwellClickDefaultAction" x:Uid="MouseUtils_DwellClick_DefaultAction">
                                 <ComboBox MinWidth="{StaticResource SettingActionControlMinWidth}" AutomationProperties.AutomationId="MouseUtils_DwellClickDefaultActionId" SelectedIndex="{x:Bind Path=ViewModel.DwellClickDefaultAction, Mode=TwoWay}">
                                     <ComboBoxItem x:Uid="MouseUtils_DwellClick_Action_LeftClick" />
