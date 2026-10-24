@@ -82,6 +82,7 @@ namespace
 
         bool Init(int w, int h)
         {
+            Release();
             width = w;
             height = h;
             memDC = CreateCompatibleDC(nullptr);
@@ -113,7 +114,18 @@ namespace
             UpdateLayeredWindow(hwnd, nullptr, &position, &size, memDC, &source, 0, &blend, ULW_ALPHA);
         }
 
-        ~LayeredSurface()
+        // Keep the surface when the size is unchanged, so a surface painted every poll is not
+        // reallocated every poll.
+        bool Ensure(int w, int h)
+        {
+            if (memDC && bitmap && w == width && h == height)
+            {
+                return true;
+            }
+            return Init(w, h);
+        }
+
+        void Release()
         {
             if (memDC)
             {
@@ -127,6 +139,17 @@ namespace
             {
                 DeleteObject(bitmap);
             }
+            memDC = nullptr;
+            bitmap = nullptr;
+            previous = nullptr;
+            bits = nullptr;
+            width = 0;
+            height = 0;
+        }
+
+        ~LayeredSurface()
+        {
+            Release();
         }
     };
 
@@ -375,6 +398,13 @@ namespace
 
 namespace dwellclick
 {
+    // The countdown window's surface, kept between paints (see PaintIndicator).
+    struct Overlay::IndicatorSurface : LayeredSurface
+    {
+    };
+
+    Overlay::Overlay() = default;
+
     Overlay::~Overlay()
     {
         Destroy();
@@ -461,6 +491,8 @@ namespace dwellclick
             DestroyWindow(m_indicator);
             m_indicator = nullptr;
         }
+        m_indicatorSurface.reset();
+        m_indicatorVisible = false;
         if (m_gdiplusToken)
         {
             Gdiplus::GdiplusShutdown(m_gdiplusToken);
@@ -942,9 +974,18 @@ namespace dwellclick
         PaintIndicator(pt, progress, ring);
         if (!m_indicatorVisible)
         {
+            // Re-assert topmost once per appearance rather than on every frame.
+            SetWindowPos(m_indicator, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
             ShowWindow(m_indicator, SW_SHOWNOACTIVATE);
             m_indicatorVisible = true;
         }
+    }
+
+    bool Overlay::NeedsTicks() const
+    {
+        // Anything that changes with time alone: a visible ring or flash, a flash still to end,
+        // or a toolbar button filling under a resting pointer.
+        return m_indicatorVisible || m_lastTick < m_flashUntil || (m_toolbar && m_settings.showToolbar && m_model.HoveredIndex() >= 0);
     }
 
     bool Overlay::ToolbarShowsState() const
@@ -998,9 +1039,34 @@ namespace dwellclick
         const bool flash = !ring;
         const bool badge = ring && m_state.currentAction != DwellAction::LeftClick;
         const int size = (badge || flash) ? ringSize * 2 : ringSize;
+        const COLORREF ringColor = m_settings.indicatorUseAccentColor ? m_accentColor : m_settings.indicatorColor;
 
-        LayeredSurface surface;
-        if (!surface.Init(size, size))
+        // This runs every poll while anything is on show, on the thread that also services the
+        // low-level mouse hook, so skip a frame that would look the same (the ring moves in whole
+        // degrees, and a flash is static) and reuse one surface rather than allocating a bitmap
+        // per frame. A slow hook thread lags the pointer for the whole system, and Windows
+        // removes a low-level hook that keeps timing out.
+        IndicatorFrame frame;
+        frame.x = pt.x;
+        frame.y = pt.y;
+        frame.size = size;
+        frame.degrees = ring ? static_cast<int>(360.0 * (progress > 1.0 ? 1.0 : progress)) : -1;
+        frame.badge = badge ? static_cast<int>(SelectCommandFor(m_state.currentAction)) : -1;
+        frame.flash = flash ? (m_flashBlocked ? -2 : static_cast<int>(m_flashCommand)) : -1;
+        frame.flashPaused = flash && m_flashPausedGlyph;
+        frame.color = ring ? ringColor : 0;
+        if (m_indicatorVisible && frame == m_lastIndicatorFrame)
+        {
+            return;
+        }
+        m_lastIndicatorFrame = frame;
+
+        if (!m_indicatorSurface)
+        {
+            m_indicatorSurface = std::make_unique<IndicatorSurface>();
+        }
+        LayeredSurface& surface = *m_indicatorSurface;
+        if (!surface.Ensure(size, size))
         {
             return;
         }
@@ -1023,7 +1089,6 @@ namespace dwellclick
             Gdiplus::Pen track(RING_TRACK, radius * 0.24f);
             g.DrawEllipse(&track, ringRect);
 
-            const COLORREF ringColor = m_settings.indicatorUseAccentColor ? m_accentColor : m_settings.indicatorColor;
             Gdiplus::Pen arc(Gdiplus::Color(255, GetRValue(ringColor), GetGValue(ringColor), GetBValue(ringColor)), radius * 0.24f);
             arc.SetStartCap(Gdiplus::LineCapRound);
             arc.SetEndCap(Gdiplus::LineCapRound);
@@ -1063,8 +1128,8 @@ namespace dwellclick
             }
         }
 
+        // UpdateLayeredWindow moves and sizes the window along with the new pixels.
         POINT position{ pt.x - size / 2, pt.y - size / 2 };
-        SetWindowPos(m_indicator, HWND_TOPMOST, position.x, position.y, size, size, SWP_NOACTIVATE | SWP_NOREDRAW);
         surface.Commit(m_indicator, position);
     }
 

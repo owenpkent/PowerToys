@@ -8,6 +8,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -160,7 +161,8 @@ namespace dwellclick
     public:
         using CommandCallback = std::function<void(ToolbarCommand)>;
 
-        Overlay() = default;
+        // Defined where IndicatorSurface is complete (m_indicatorSurface needs it).
+        Overlay();
         Overlay(const Overlay&) = delete;
         Overlay& operator=(const Overlay&) = delete;
         ~Overlay();
@@ -203,7 +205,27 @@ namespace dwellclick
         // while it is, so nothing is clicked behind the menu while the user reaches for it.
         bool IsMenuOpen() const;
 
+        // Whether the overlay changes with time alone (a ring, a flash, or a toolbar button
+        // filling), so the caller must keep ticking it on the fast poll cadence.
+        bool NeedsTicks() const;
+
     private:
+        struct IndicatorSurface;
+
+        // What the countdown window last showed, so an identical frame is not repainted.
+        struct IndicatorFrame
+        {
+            long x = 0;
+            long y = 0;
+            int size = 0;
+            int degrees = -1;
+            int badge = -1;
+            int flash = -1;
+            bool flashPaused = false;
+            COLORREF color = 0;
+            bool operator==(const IndicatorFrame&) const = default;
+        };
+
         bool IsFloating() const;
         void LayoutDocked(const RECT& work, double scale);
         void LayoutMenu(const RECT& work, double scale);
@@ -245,6 +267,9 @@ namespace dwellclick
         ToolbarCommand m_flashCommand = ToolbarCommand::TogglePause;
         bool m_flashPausedGlyph = false;
         bool m_flashBlocked = false;
+
+        std::unique_ptr<IndicatorSurface> m_indicatorSurface;
+        IndicatorFrame m_lastIndicatorFrame;
         uint64_t m_flashUntil = 0;
     };
 }
