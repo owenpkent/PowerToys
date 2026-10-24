@@ -18,8 +18,9 @@
 // dwell-style selection are overwhelmingly unintended activations rather than missed targets, so
 // every design choice below is biased toward refusing to fire when intent is unclear:
 //
-//   - The machine starts LOCKED and re-locks after every action, after a physical click, on pause,
-//     and on any live settings change. A lock is cleared only by deliberate pointer movement.
+//   - The machine starts LOCKED and re-locks after every action, after a physical click or wheel
+//     turn, on pause, and on any live settings change. A lock is cleared only by deliberate
+//     pointer movement.
 //   - Two separate distances gate that movement (this mirrors macOS Dwell Control, which exposes
 //     "dwell movement tolerance" and "post-action movement tolerance" as distinct settings):
 //     moveTolerancePixels is the jitter a countdown survives, and postActionTolerancePixels is
@@ -273,6 +274,16 @@ namespace dwellclick
         // sometimes should not get a dwell click stacked on top of the one they just made, so this
         // locks until the pointer moves away.
         void OnPhysicalClick()
+        {
+            LockUntilMove();
+        }
+
+        // Report that the user turned a physical wheel (either axis). Scrolling moves the content
+        // under a pointer that has not moved, so a countdown that started before the scroll would
+        // otherwise land its click on whatever scrolled into place. Like a physical click, this
+        // locks until the pointer moves away. It also ends a dwell scroll or zoom repeat: the user
+        // has taken over.
+        void OnPhysicalWheel()
         {
             LockUntilMove();
         }
