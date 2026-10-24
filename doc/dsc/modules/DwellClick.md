@@ -19,7 +19,8 @@ Utilities sub-module for people who can move a pointer but cannot
 reliably click it. Rest the pointer on a target for the configured dwell
 time and the chosen action fires there: a left, right, double, or middle
 click, or a two-dwell drag (the first dwell presses the left button, the
-second releases it).
+second releases it). Chosen from the toolbar or the cycle shortcut, a
+dwell can also scroll or zoom, repeating while the pointer keeps resting.
 
 Windows does not let PowerToys send input to a window running as
 administrator unless PowerToys also runs as administrator. Dwell Click
@@ -178,9 +179,11 @@ pointer briefly shows the pause or resume symbol.
 ### CycleActionShortcut
 
 Sets the keyboard shortcut that switches the next dwell action to the
-following one (left click, right click, double-click, middle click, drag,
-scroll up, scroll down, then back to left click). A drag in progress is
-released first. When the toolbar is hidden or collapsed, the pointer
+following one, in this order: left click, right click, double-click,
+middle click, drag, scroll up, scroll down, scroll left, scroll right,
+zoom in, zoom out, then back to left click. An action whose toolbar button
+is switched off is skipped (the default action never is). A drag in
+progress is released first. When the toolbar is hidden or collapsed, the pointer
 briefly shows the symbol of the action chosen. Takes the same object as
 `ActivationShortcut`.
 

@@ -107,7 +107,7 @@ halving on the high-DPI one.
 
 Both comparisons are strictly greater than the threshold, so a move of exactly the tolerance still
 counts as resting. Distances are compared as squared `double`: coordinates are 32-bit and a raw
-integer product can overflow for extreme inputs, which the eventual fuzz target will drive.
+integer product can overflow for extreme inputs, which the fuzz target drives.
 
 ### Actions
 
@@ -429,8 +429,8 @@ must agree on all of these):
 
 ## Testing
 
-[EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) has 39 tests in
-eight classes, using a recording fake injector and an explicit tick:
+[EngineTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/EngineTests.cpp) has 61 tests in
+thirteen classes, using a recording fake injector and an explicit tick:
 
 - `DwellCountdown` - starts locked, tolerance boundaries, firing at the threshold, progress
   reporting, and the degenerate inputs above
@@ -459,8 +459,6 @@ eight classes, using a recording fake injector and an explicit tick:
   and a scaled tolerance absorbs the same hand movement
 - `CountdownRing` - the ring waits for a fifth of a short dwell, at most 250 ms of a long one,
   and stays hidden for idle or degenerate input
-
-(61 tests in thirteen classes in all.)
 
 [ToolbarModelTests.cpp](/src/modules/MouseUtils/DwellClick.UnitTests/ToolbarModelTests.cpp) adds
 38 tests over the toolbar model in seven classes: layout and hit-testing, the configurable
@@ -555,7 +553,7 @@ The four settings tests:
 | `DwellTimeAndTolerancesPersistAtBoundaries` | The dwell time and both tolerances persist at their minimum and maximum, and the dwell time reloads after restart. |
 | `ADwellCompletesADragAndASecondDwellReleasesIt` | A dwell presses and holds the left button, a second dwell releases it, and the engine re-arms for another drag. |
 
-All 24 passed on a host desktop against a local x64 Debug build on 2026-10-18 (the Show desktop
+All 25 passed on a host desktop against a local x64 Debug build on 2026-10-23 (the Show desktop
 test minimizes the user's windows and restores them, but some apps, Windows Settings among them,
 may need restoring by hand afterwards). They have not yet
 run on the Windows 10/11 VMs from the
@@ -614,6 +612,11 @@ Still to build:
 - Dwell Click cannot reach the secure desktop (UAC prompts, the lock screen, Ctrl+Alt+Del): the
   hook does not see the pointer there, and injecting into it needs a `uiAccess` signed binary,
   which PowerToys modules are not. Elevated windows work when PowerToys runs as administrator.
+- The engine arms only on moves the low-level hook reports. A pointer steered purely with
+  `SetCursorPos` (which some head and eye trackers use) never starts a countdown; the toolbar
+  still follows it, because it reads the cursor position on every poll. Feeding polled
+  positions to the engine would fix it, but the UI suite also moves the pointer with
+  `SetCursorPos` and relies on such jumps not arming the engine, so it needs care.
 - Killing the PowerToys process while a zoom notch is holding Ctrl can leave Ctrl down (see
   [The module layer](#the-module-layer)); a graceful disable is not affected.
 
