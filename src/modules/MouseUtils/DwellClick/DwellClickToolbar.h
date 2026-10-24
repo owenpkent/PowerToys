@@ -89,6 +89,39 @@ namespace dwellclick
         }
     }
 
+    // The Select* command that chooses an action: the inverse of ActionFor. The overlay uses it
+    // to draw an action's toolbar glyph away from the toolbar (the badge beside the countdown
+    // ring, and the cycle shortcut's feedback).
+    constexpr ToolbarCommand SelectCommandFor(DwellAction action)
+    {
+        switch (action)
+        {
+        case DwellAction::DoubleClick:
+            return ToolbarCommand::SelectDoubleClick;
+        case DwellAction::RightClick:
+            return ToolbarCommand::SelectRightClick;
+        case DwellAction::MiddleClick:
+            return ToolbarCommand::SelectMiddleClick;
+        case DwellAction::Drag:
+            return ToolbarCommand::SelectDrag;
+        case DwellAction::ScrollUp:
+            return ToolbarCommand::SelectScrollUp;
+        case DwellAction::ScrollDown:
+            return ToolbarCommand::SelectScrollDown;
+        case DwellAction::ScrollLeft:
+            return ToolbarCommand::SelectScrollLeft;
+        case DwellAction::ScrollRight:
+            return ToolbarCommand::SelectScrollRight;
+        case DwellAction::ZoomIn:
+            return ToolbarCommand::SelectZoomIn;
+        case DwellAction::ZoomOut:
+            return ToolbarCommand::SelectZoomOut;
+        case DwellAction::LeftClick:
+        default:
+            return ToolbarCommand::SelectLeftClick;
+        }
+    }
+
     // Buttons flow along the toolbar's long axis: down a bar docked to the left or right edge,
     // across a bar docked to the top or bottom edge or the floating menu's grid. A line that would
     // outgrow the screen wraps into another column (or row) beside it.

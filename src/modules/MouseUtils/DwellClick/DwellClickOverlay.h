@@ -18,8 +18,12 @@
 //
 //   - A countdown ring that follows the pointer and fills with PollResult.progress, so the
 //     user always sees when a click is about to land. It appears only once a rest is
-//     unmistakable (ShowCountdownRing), so it does not trail a moving pointer. The window is
-//     layered, topmost, and click-through: it can never receive input or steal focus.
+//     unmistakable (ShowCountdownRing), so it does not trail a moving pointer. Any action
+//     other than a left click adds a badge with that action's toolbar glyph beside the ring,
+//     so a sticky scroll mode or a half-finished drag is never a surprise. The window is
+//     layered, topmost, and click-through: it can never receive input or steal focus. The same
+//     window briefly shows what a shortcut did (pause, resume, or the newly cycled action) when
+//     the toolbar is not showing it.
 //   - An action toolbar docked to a screen edge: a collapse handle, pause/resume, and a
 //     Settings-chosen set of action buttons (clicks, drag, scroll modes, open Settings). It
 //     accepts input (hover dwells and physical clicks) but never activates, and its
@@ -180,6 +184,12 @@ namespace dwellclick
         // young to be a real rest (see ShowCountdownRing).
         void UpdateIndicator(POINT pt, double progress, int dwellMs, bool show);
 
+        // Briefly show a shortcut's result at the pointer (the pause/resume state, or the action
+        // the cycle shortcut chose), using the toolbar glyph for it. Only when the toolbar is
+        // hidden or collapsed: an open toolbar already shows that state.
+        void FlashPauseState(bool paused, uint64_t tick);
+        void FlashAction(DwellAction action, uint64_t tick);
+
         // Whether the point is over the visible toolbar; the caller keeps the engine locked
         // there so dwells over the toolbar select buttons instead of clicking through them.
         bool IsPointOverToolbar(POINT screenPt) const;
@@ -197,7 +207,9 @@ namespace dwellclick
 
         void LayoutToolbar();
         void PaintToolbar(uint64_t tick, int dwellMs);
-        void PaintIndicator(POINT pt, double progress);
+        void PaintIndicator(POINT pt, double progress, bool ring);
+        bool ToolbarShowsState() const;
+        void StartFlash(ToolbarCommand command, bool pausedGlyph, uint64_t tick);
         void DispatchCommand(ToolbarCommand command);
         double Scale() const;
 
@@ -217,5 +229,10 @@ namespace dwellclick
         int m_lastPaintedHover = -2;
         int m_lastDwellMs = 1;
         uint64_t m_lastTick = 0;
+
+        // The shortcut feedback on show (see FlashPauseState): the glyph, and when it ends.
+        ToolbarCommand m_flashCommand = ToolbarCommand::TogglePause;
+        bool m_flashPausedGlyph = false;
+        uint64_t m_flashUntil = 0;
     };
 }
