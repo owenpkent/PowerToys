@@ -352,7 +352,11 @@ Placement follows Ease Mouse's dock and button-position settings:
   button. While the menu is open the poll loop keeps the engine locked wherever the pointer is
   (`Overlay::IsMenuOpen`), so nothing is clicked behind it.
 
-The toolbar docks to the primary monitor.
+The toolbar docks to the primary monitor's work area and follows it: `WM_DISPLAYCHANGE` (a
+resolution change, a monitor added or removed, a new primary) and `WM_SETTINGCHANGE` with
+`SPI_SETWORKAREA` (the taskbar moved, resized, or changed auto-hide) re-lay it out at once, and
+`TickToolbar` compares the work area once a second as a backstop. Without that, a toolbar left
+off screen could not be brought back by someone who cannot click.
 
 ## Defaults
 

@@ -24,10 +24,11 @@
 //     layered, topmost, and click-through: it can never receive input or steal focus. The same
 //     window briefly shows what a shortcut did (pause, resume, or the newly cycled action) when
 //     the toolbar is not showing it.
-//   - An action toolbar docked to a screen edge: a collapse handle, pause/resume, and a
-//     Settings-chosen set of action buttons (clicks, drag, scroll modes, open Settings). It
-//     accepts input (hover dwells and physical clicks) but never activates, and its
-//     decisions live in the Win32-free ToolbarModel.
+//   - An action toolbar docked to an edge of the primary monitor's work area: a collapse
+//     handle, pause/resume, and a Settings-chosen set of action buttons (clicks, drag, scroll
+//     modes, open Settings). It accepts input (hover dwells and physical clicks) but never
+//     activates, and its decisions live in the Win32-free ToolbarModel. It is laid out again
+//     whenever the display or the work area changes, so it cannot be stranded off screen.
 //
 // Both windows are created, painted, and destroyed on the module's hook thread, which
 // already pumps messages; commands therefore reach the caller's callback on that same
@@ -222,6 +223,11 @@ namespace dwellclick
         ToolbarVisualState m_state;
         ULONG_PTR m_gdiplusToken = 0;
         RECT m_toolbarRect{};
+
+        // The primary work area the toolbar was last laid out for, and when it was last
+        // compared against the live one (see TickToolbar).
+        RECT m_layoutWorkArea{};
+        uint64_t m_lastWorkAreaCheckTick = 0;
         bool m_buttonsInitialized = false;
         bool m_indicatorVisible = false;
         COLORREF m_accentColor = RGB(0x00, 0x78, 0xD4); // Windows accent, refreshed when a countdown starts
