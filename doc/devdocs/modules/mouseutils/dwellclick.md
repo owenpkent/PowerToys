@@ -182,10 +182,13 @@ engine, following the Mouse Button Lock module closely:
   wakes every 15 ms (`MsgWaitForMultipleObjects` timeout) to pump messages and call `Poll`, which
   is what advances a countdown while the pointer is at rest and no messages arrive. The loop
   only polls that fast while time alone can change something (`Engine::IsCountingDown`, the
-  pointer over the toolbar, or `Overlay::NeedsTicks`); otherwise it waits up to 1 s, because a
-  pointer move wakes the wait at once (the hook's call arrives as a sent message) and
-  `set_config` and the hotkeys set `m_wakeEvent`. An idle PowerToys therefore no longer wakes
-  66 times a second.
+  pointer over the toolbar, a cursor that moved since the last pass, or `Overlay::NeedsTicks`);
+  otherwise it waits up to 100 ms. Real input wakes the wait at once (the hook's call arrives as
+  a sent message), and `set_config` and the hotkeys set `m_wakeEvent`. The 100 ms bound is for
+  pointers steered with `SetCursorPos`, which never reaches a low-level hook: the toolbar must
+  still see such a pointer leave a button to re-arm it (the UI suite's collapse test moves the
+  pointer that way and caught a 1 s bound). An idle PowerToys wakes about 10 times a second
+  instead of 66.
 - **The hook thread is kept light.** It also services the low-level hook, so a slow frame lags
   the pointer system-wide, and Windows removes a low-level hook that keeps timing out. The ring
   reuses one bitmap rather than allocating one per frame, skips a frame identical to the last

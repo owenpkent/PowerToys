@@ -117,10 +117,13 @@ namespace
     constexpr DWORD POLL_INTERVAL_MS = 15;
 
     // The poll cadence while nothing can change with time alone: no countdown, nothing on show,
-    // and no toolbar button filling. A pointer move wakes the wait at once (the hook's call
-    // arrives as a sent message), and set_config and the hotkeys set m_wakeEvent, so this only
-    // bounds the backstops that do run on a timer (the toolbar's work-area check).
-    constexpr DWORD IDLE_POLL_INTERVAL_MS = 1000;
+    // and no toolbar button filling. Real input wakes the wait at once (the hook's call arrives
+    // as a sent message), and set_config and the hotkeys set m_wakeEvent. But SetCursorPos never
+    // reaches a low-level hook, and some assistive software steers the pointer with it, so the
+    // toolbar still has to see such a pointer leave a button to re-arm it: this interval bounds
+    // how long a SetCursorPos move can go unseen, and any cursor change it does see switches
+    // back to the fast cadence. About 10 wakeups a second instead of 66.
+    constexpr DWORD IDLE_POLL_INTERVAL_MS = 100;
 
     // Default values mirror the engine's Settings defaults (see DwellClickCore.h for their
     // provenance); the eventual C# DwellClickProperties must match both.
@@ -476,6 +479,11 @@ private:
     // on_hotkey). Created and closed on the runner thread around the hook thread's lifetime,
     // and every SetEvent also runs on the runner thread, so it cannot race the close.
     HANDLE m_wakeEvent = nullptr;
+
+    // The cursor position the poll loop saw last pass. Hook thread only. A change means the
+    // pointer moved, possibly by SetCursorPos, which the hook never reports (see
+    // IDLE_POLL_INTERVAL_MS).
+    POINT m_lastPolledCursor{};
     std::thread m_hookThread;
     std::atomic<bool> m_listening{ false };
 
@@ -1107,18 +1115,14 @@ void DwellClick::HookThreadMain()
         }
 
         // Poll fast only while time alone can change something: a countdown (including a
-        // repeating scroll), the toolbar under the pointer, or anything the overlay is
-        // animating. Otherwise only a pointer move, a settings change, or a hotkey can, and each
-        // of those wakes the wait itself. A held button still needs its stale-hold check.
-        const bool busy = m_engine.IsCountingDown() || overToolbar || result.failed || (overlayCreated && m_overlay.NeedsTicks());
-        if (busy || !m_wakeEvent)
-        {
-            timeout = POLL_INTERVAL_MS;
-        }
-        else
-        {
-            timeout = m_externalButtonsHeld != 0 ? static_cast<DWORD>(STALE_HOLD_CHECK_MS) : IDLE_POLL_INTERVAL_MS;
-        }
+        // repeating scroll), the toolbar under the pointer, anything the overlay is animating,
+        // or a pointer that just moved. Otherwise only input, a settings change, or a hotkey
+        // can, and each of those wakes the wait itself; the idle interval covers pointer moves
+        // made with SetCursorPos and the stale-hold check.
+        const bool cursorMoved = cursor.x != m_lastPolledCursor.x || cursor.y != m_lastPolledCursor.y;
+        m_lastPolledCursor = cursor;
+        const bool busy = cursorMoved || m_engine.IsCountingDown() || overToolbar || result.failed || (overlayCreated && m_overlay.NeedsTicks());
+        timeout = (busy || !m_wakeEvent) ? POLL_INTERVAL_MS : IDLE_POLL_INTERVAL_MS;
     }
 
     if (overlayCreated)
